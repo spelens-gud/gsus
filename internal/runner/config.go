@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"github.com/spelens-gud/gsus/apis/helpers/executor"
 	"github.com/spelens-gud/gsus/internal/config"
 )
 
@@ -12,7 +11,7 @@ type ConfigOptions struct {
 
 // RunAutoConfig function    执行配置操作.
 func RunAutoConfig(opts *ConfigOptions) {
-	executor.ExecuteWithConfig(func(_ config.Option) (err error) {
+	config.ExecuteWithConfig(func(_ config.Option) (err error) {
 		cfg, err := config.Get()
 		if err != nil {
 			return err

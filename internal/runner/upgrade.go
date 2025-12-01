@@ -9,8 +9,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/spelens-gud/gsus/apis/constant"
-	"github.com/spelens-gud/gsus/apis/helpers/executor"
 	"github.com/spelens-gud/gsus/internal/config"
 )
 
@@ -21,14 +19,14 @@ type UpgradeOptions struct {
 
 // RunAutoUpgrade function    执行升级操作.
 func RunAutoUpgrade(opts *UpgradeOptions) {
-	executor.ExecuteWithConfig(func(_ config.Option) (err error) {
+	config.ExecuteWithConfig(func(_ config.Option) (err error) {
 		vStr := ""
 		if opts.Verbose {
 			vStr = "-v"
 		}
 
-		log.Printf("updating gsus from [ %s ] ...", constant.GoGetUrl)
-		if err = execCommand("go", "get", "-u", vStr, constant.GoGetUrl); err == nil {
+		log.Printf("updating gsus from [ %s ] ...", config.GoGetUrl)
+		if err = execCommand("go", "get", "-u", vStr, config.GoGetUrl); err == nil {
 			return nil
 		}
 
@@ -36,7 +34,7 @@ func RunAutoUpgrade(opts *UpgradeOptions) {
 			return nil
 		}
 
-		if err = execCommand("go", "get", "--insecure", "-u", vStr, constant.GoGetUrl); err == nil {
+		if err = execCommand("go", "get", "--insecure", "-u", vStr, config.GoGetUrl); err == nil {
 			return nil
 		}
 

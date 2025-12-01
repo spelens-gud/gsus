@@ -5,11 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spelens-gud/gsus/apis/constant"
-	"github.com/spelens-gud/gsus/apis/helpers"
-	"github.com/spelens-gud/gsus/apis/helpers/executor"
-	"github.com/spelens-gud/gsus/basetmpl"
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/template"
+	"github.com/spelens-gud/gsus/internal/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,26 +18,26 @@ type InitOptions struct {
 
 // RunAutoInit function    执行项目初始化.
 func RunAutoInit(opts *InitOptions) {
-	executor.Execute(func() (err error) {
+	utils.Execute(func() (err error) {
 		// 检查配置是否已存在
 		if _, err := config.Get(); err == nil {
 			return fmt.Errorf("gsus has already init in project,run [ gsus update ] to update templates")
 		}
 
 		// 获取项目目录
-		dir, err := helpers.GetProjectDir()
+		dir, err := utils.GetProjectDir()
 		if err != nil {
 			return err
 		}
 
 		// 创建 .gsus 目录
-		if err = os.Mkdir(filepath.Join(dir, constant.ConfigDir), 0775); err != nil {
+		if err = os.Mkdir(filepath.Join(dir, config.ConfigDir), 0775); err != nil {
 			return err
 		}
 
 		// 解析默认配置
 		var tmp config.Option
-		if err = yaml.Unmarshal([]byte(basetmpl.DefaultConfigYaml), &tmp); err != nil {
+		if err = yaml.Unmarshal([]byte(template.DefaultConfigYaml), &tmp); err != nil {
 			return err
 		}
 		bytes, err := yaml.Marshal(&tmp)
@@ -48,12 +46,12 @@ func RunAutoInit(opts *InitOptions) {
 		}
 
 		// 写入默认配置文件
-		if err = os.WriteFile(filepath.Join(dir, constant.ConfigFile), bytes, 0664); err != nil {
+		if err = os.WriteFile(filepath.Join(dir, config.ConfigFile), bytes, 0664); err != nil {
 			return err
 		}
 
 		// 创建模板目录
-		if err = os.Mkdir(filepath.Join(dir, constant.TemplateDir), 0775); err != nil {
+		if err = os.Mkdir(filepath.Join(dir, config.TemplateDir), 0775); err != nil {
 			return err
 		}
 
@@ -64,7 +62,7 @@ func RunAutoInit(opts *InitOptions) {
 
 func writeTemplates(dir string, contentMap map[string]string) error {
 	for path, content := range contentMap {
-		p := filepath.Join(dir, constant.TemplateDir, path+constant.TemplateSuffix)
+		p := filepath.Join(dir, config.TemplateDir, path+config.TemplateSuffix)
 		if err := os.WriteFile(p, []byte(content), 0664); err != nil {
 			return err
 		}
@@ -74,15 +72,15 @@ func writeTemplates(dir string, contentMap map[string]string) error {
 
 func getTemplateMap() map[string]string {
 	return map[string]string{
-		"impl":             basetmpl.DefaultImplTemplate,
-		"http_router":      basetmpl.DefaultHttpRouterTemplate,
-		"http_client_api":  basetmpl.DefaultHttpClientApiTemplate,
-		"http_client_base": basetmpl.DefaultHttpClientBaseTemplate,
-		"dao":              basetmpl.DefaultDaoTemplate,
-		"dao_impl":         basetmpl.DefaultDaoImplTemplate,
-		"service":          basetmpl.DefaultServiceTemplate,
-		"service_impl":     basetmpl.DefaultServiceImplTemplate,
-		"model_cast":       basetmpl.DefaultModelCastTemplate,
-		"model_generic":    basetmpl.DefaultModelGenericTemplate,
+		"impl":             template.DefaultImplTemplate,
+		"http_router":      template.DefaultHttpRouterTemplate,
+		"http_client_api":  template.DefaultHttpClientApiTemplate,
+		"http_client_base": template.DefaultHttpClientBaseTemplate,
+		"dao":              template.DefaultDaoTemplate,
+		"dao_impl":         template.DefaultDaoImplTemplate,
+		"service":          template.DefaultServiceTemplate,
+		"service_impl":     template.DefaultServiceImplTemplate,
+		"model_cast":       template.DefaultModelCastTemplate,
+		"model_generic":    template.DefaultModelGenericTemplate,
 	}
 }

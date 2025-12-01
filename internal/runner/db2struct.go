@@ -5,11 +5,9 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/spelens-gud/gsus/apis/db2struct"
-	"github.com/spelens-gud/gsus/apis/gengeneric"
-	"github.com/spelens-gud/gsus/apis/helpers"
 	"github.com/spelens-gud/gsus/internal/config"
-	"github.com/spelens-gud/gsus/internal/parser"
+	"github.com/spelens-gud/gsus/internal/generator"
+	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
 )
 
@@ -18,8 +16,8 @@ type Db2structOptions struct {
 }
 
 func RunAutoDb2Struct(opts *Db2structOptions) {
-	ExecuteWithConfig(func(cfg config.Option) error {
-		var genOpts []db2struct.Option
+	config.ExecuteWithConfig(func(cfg config.Option) error {
+		var genOpts []config.DbOption
 		var db2structConfig = cfg.Db2struct
 
 		if len(db2structConfig.Path) == 0 {
@@ -28,13 +26,13 @@ func RunAutoDb2Struct(opts *Db2structOptions) {
 
 		pkgName := filepath.Base(db2structConfig.Path)
 		genOpts = append(genOpts,
-			db2struct.WithPkgName(pkgName),
-			db2struct.WithSQLInfo(),
-			db2struct.WithCommentOutside(),
-			db2struct.WithGormAnnotation(),
+			config.WithPkgName(pkgName),
+			config.WithSQLInfo(),
+			config.WithCommentOutside(),
+			config.WithGormAnnotation(),
 		)
 
-		if err := parser.FixFilepathByProjectDir(&db2structConfig.Path); err != nil {
+		if err := utils.FixFilepathByProjectDir(&db2structConfig.Path); err != nil {
 			return fmt.Errorf("failed to fix path: %w", err)
 		}
 
@@ -44,37 +42,37 @@ func RunAutoDb2Struct(opts *Db2structOptions) {
 		dbConfig := buildDBConfig(db2structConfig)
 
 		if len(opts.Tables) <= 0 {
-			return db2struct.GenAll(db2structConfig.Path, dbConfig, genOpts...)
+			return generator.GenAllDb2Struct(db2structConfig.Path, dbConfig, genOpts...)
 		}
 
 		return generateModelsForTables(opts.Tables, db2structConfig.Path, dbConfig, genOpts)
 	})
 }
 
-func applyTypeReplacements(genOpts *[]db2struct.Option, typeMap map[string]string) {
+func applyTypeReplacements(genOpts *[]config.DbOption, typeMap map[string]string) {
 	for k, v := range typeMap {
-		*genOpts = append(*genOpts, db2struct.WithTypeReplace(k, v))
+		*genOpts = append(*genOpts, config.WithTypeReplace(k, v))
 	}
 }
 
-func applyGenericOptions(genOpts *[]db2struct.Option, genericMapTypes []string, templatePath string) {
+func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, templatePath string) {
 	if len(genericMapTypes) > 0 {
-		*genOpts = append(*genOpts, db2struct.WithGenericOption(func(options *gengeneric.Options) {
+		*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {
 			options.MapTypes = genericMapTypes
 		}))
 	}
 
 	if templatePath != "" {
-		if tmpl, _, _ := helpers.LoadTemplate(templatePath); tmpl != nil {
-			*genOpts = append(*genOpts, db2struct.WithGenericOption(func(options *gengeneric.Options) {
+		if tmpl, _, _ := config.LoadTemplate(templatePath); tmpl != nil {
+			*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {
 				options.Template = tmpl
 			}))
 		}
 	}
 }
 
-func buildDBConfig(config config.Db2struct) db2struct.DBConfig {
-	return db2struct.DBConfig{
+func buildDBConfig(config config.Db2struct) generator.DBConfig {
+	return generator.DBConfig{
 		User:     config.User,
 		Password: config.Password,
 		DB:       config.Db,
@@ -83,10 +81,10 @@ func buildDBConfig(config config.Db2struct) db2struct.DBConfig {
 	}
 }
 
-func generateModelsForTables(tables []string, outputPath string, dbConfig db2struct.DBConfig,
-	genOpts []db2struct.Option) error {
+func generateModelsForTables(tables []string, outputPath string, dbConfig generator.DBConfig,
+	genOpts []config.DbOption) error {
 	for _, table := range tables {
-		bytes, err := db2struct.Gen(table, dbConfig, genOpts...)
+		bytes, err := generator.GenTable(table, dbConfig, genOpts...)
 		if err != nil {
 			log.Printf("generate table [%s] failed: %v", table, err)
 			continue
@@ -94,7 +92,7 @@ func generateModelsForTables(tables []string, outputPath string, dbConfig db2str
 
 		filename := strcase.SnakeCase(table) + ".go"
 		filePath := filepath.Join(outputPath, filename)
-		if err = helpers.ImportAndWrite(bytes, filePath); err != nil {
+		if err = utils.ImportAndWrite(bytes, filePath); err != nil {
 			log.Printf("write file for table [%s] error: %v", table, err)
 		}
 	}

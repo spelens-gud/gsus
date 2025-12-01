@@ -4,10 +4,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spelens-gud/gsus/apis/helpers"
-	"github.com/spelens-gud/gsus/apis/helpers/executor"
-	"github.com/spelens-gud/gsus/apis/templates"
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/generator"
+	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
 )
 
@@ -20,7 +19,7 @@ type TemplateOptions struct {
 
 // RunAutoTemplate function    执行模板操作.
 func RunAutoTemplate(opts *TemplateOptions) {
-	executor.ExecuteWithConfig(func(cfg config.Option) (err error) {
+	config.ExecuteWithConfig(func(cfg config.Option) (err error) {
 		cfg, err = config.Get()
 		if err != nil {
 			return err
@@ -30,7 +29,7 @@ func RunAutoTemplate(opts *TemplateOptions) {
 			cfg.Templates.ModelPath = cfg.Db2struct.Path
 		}
 
-		if err = helpers.FixFilepathByProjectDir(&cfg.Templates.ModelPath); err != nil {
+		if err = utils.FixFilepathByProjectDir(&cfg.Templates.ModelPath); err != nil {
 			return err
 		}
 
@@ -68,7 +67,7 @@ func collectModelsFromPath(modelPath string) ([]string, error) {
 }
 
 func processModel(model string, cfg config.Option, opts *TemplateOptions) error {
-	return templates.Gen(templates.Config{
+	return generator.GenTemplate(generator.TemplateConfig{
 		ModelPath: cfg.Templates.ModelPath,
 		ModelName: strcase.SnakeCase(model),
 		Templates: cfg.Templates.Templates,

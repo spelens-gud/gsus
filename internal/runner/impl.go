@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/spelens-gud/gsus/apis/constant"
-	"github.com/spelens-gud/gsus/apis/helpers"
-	"github.com/spelens-gud/gsus/apis/helpers/executor"
-	"github.com/spelens-gud/gsus/apis/syncimpl"
-	"github.com/spelens-gud/gsus/basetmpl"
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/generator"
+	"github.com/spelens-gud/gsus/internal/template"
+	"github.com/spelens-gud/gsus/internal/utils"
 )
 
 // ImplOptions struct    实现生成选项.
@@ -20,20 +18,20 @@ type ImplOptions struct {
 }
 
 func RunAutoImpl(opts *ImplOptions) {
-	executor.ExecuteWithConfig(func(_ config.Option) (err error) {
-		syncConfig := &syncimpl.Config{
+	config.ExecuteWithConfig(func(_ config.Option) (err error) {
+		syncConfig := &generator.Config{
 			SetName:       opts.Interface,
 			ImplementsDir: opts.Struct,
 			Scope:         "./",
 			Prefix:        opts.Prefix,
 		}
 
-		if err = helpers.FixFilepathByProjectDir(&opts.Struct, &syncConfig.Scope); err != nil {
+		if err = utils.FixFilepathByProjectDir(&opts.Struct, &syncConfig.Scope); err != nil {
 			return fmt.Errorf("init implement dir error: %v", err)
 		}
 
-		templatePath := filepath.Join(opts.Struct, ".gsus.impl"+constant.TemplateSuffix)
-		temp, _, err := helpers.InitTemplateAndLoad(templatePath, basetmpl.DefaultImplTemplate)
+		templatePath := filepath.Join(opts.Struct, ".gsus.impl"+config.TemplateSuffix)
+		temp, _, err := config.InitTemplateAndLoad(templatePath, template.DefaultImplTemplate)
 		if err != nil {
 			return fmt.Errorf("load implement init template error: %v", err)
 		}
