@@ -8,6 +8,7 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 import (
 	"bytes"
 	"context"
+	"log"
 	"os"
 
 	"charm.land/lipgloss/v2"
@@ -19,9 +20,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const commandName = "gsus"
+
+// init function    初始化日志配置.
+func init() {
+	log.SetPrefix("[" + commandName + "] ") // 设置日志前缀
+	log.SetFlags(0)                         // 不显示时间戳
+	log.SetOutput(os.Stdout)                // 输出到标准输出
+}
+
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
-	Use:   "gsus",
+	Use:   commandName,
 	Short: "A brief description of your application",
 	Long: `A longer description that spans multiple lines and likely contains
 examples and usage of using your application. For example:

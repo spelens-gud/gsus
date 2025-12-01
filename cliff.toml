@@ -50,7 +50,7 @@ postprocessors = [
 ]
 
 [git]
-# parse the commits based on https://www.conventionalcommits.org
+# parser the commits based on https://www.conventionalcommits.org
 conventional_commits = true
 # filter out the commits that are not conventional
 filter_unconventional = false

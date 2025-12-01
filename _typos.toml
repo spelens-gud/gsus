@@ -47,6 +47,7 @@ toml = "toml"
 [files]
 # 扩展忽略的文件类型
 extend-exclude = [
+    "*.md",
     "*.sum",
     "*.lock",
     "*.log",
