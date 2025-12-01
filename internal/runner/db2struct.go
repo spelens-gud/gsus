@@ -1,61 +1,78 @@
 package runner
 
 import (
-	"fmt"
-	"log"
+	"context"
 	"path/filepath"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/generator"
+	"github.com/spelens-gud/gsus/internal/logger"
+	"github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
 )
 
+// Db2structOptions struct    数据库表转结构体选项.
 type Db2structOptions struct {
 	Tables []string // 指定的表名列表
 }
 
-func RunAutoDb2Struct(opts *Db2structOptions) {
-	config.ExecuteWithConfig(func(cfg config.Option) error {
-		var genOpts []config.DbOption
-		var db2structConfig = cfg.Db2struct
+// Db2struct function    执行数据库表转结构体.
+func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) error {
+	var genOpts []config.DbOption
+	db2structConfig := cfg.Db2struct
 
-		if len(db2structConfig.Path) == 0 {
-			db2structConfig.Path = "./internal/model"
+	// 设置默认输出路径
+	if len(db2structConfig.Path) == 0 {
+		db2structConfig.Path = "./internal/model"
+	}
+
+	// 构建生成选项
+	pkgName := filepath.Base(db2structConfig.Path)
+	genOpts = append(genOpts,
+		config.WithPkgName(pkgName),
+		config.WithSQLInfo(),
+		config.WithCommentOutside(),
+		config.WithGormAnnotation(),
+	)
+
+	// 修正路径
+	if err := utils.FixFilepathByProjectDir(&db2structConfig.Path); err != nil {
+		return errors.WrapWithCode(err, errors.ErrCodeFile, "failed to resolve output path")
+	}
+
+	// 应用类型替换
+	applyTypeReplacements(&genOpts, db2structConfig.TypeMap)
+
+	// 应用泛型选项
+	if err := applyGenericOptions(&genOpts, db2structConfig.GenericMapTypes, db2structConfig.GenericTemplate); err != nil {
+		return err
+	}
+
+	// 构建数据库配置
+	dbConfig := buildDBConfig(db2structConfig)
+
+	// 生成所有表或指定表
+	if len(opts.Tables) == 0 {
+		if err := generator.GenAllDb2Struct(db2structConfig.Path, dbConfig, genOpts...); err != nil {
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, "failed to generate all tables")
 		}
+		return nil
+	}
 
-		pkgName := filepath.Base(db2structConfig.Path)
-		genOpts = append(genOpts,
-			config.WithPkgName(pkgName),
-			config.WithSQLInfo(),
-			config.WithCommentOutside(),
-			config.WithGormAnnotation(),
-		)
-
-		if err := utils.FixFilepathByProjectDir(&db2structConfig.Path); err != nil {
-			return fmt.Errorf("failed to fix path: %w", err)
-		}
-
-		applyTypeReplacements(&genOpts, db2structConfig.TypeMap)
-		applyGenericOptions(&genOpts, db2structConfig.GenericMapTypes, db2structConfig.GenericTemplate)
-
-		dbConfig := buildDBConfig(db2structConfig)
-
-		if len(opts.Tables) <= 0 {
-			return generator.GenAllDb2Struct(db2structConfig.Path, dbConfig, genOpts...)
-		}
-
-		return generateModelsForTables(opts.Tables, db2structConfig.Path, dbConfig, genOpts)
-	})
+	return generateModelsForTables(opts.Tables, db2structConfig.Path, dbConfig, genOpts)
 }
 
+// applyTypeReplacements function    应用类型替换.
 func applyTypeReplacements(genOpts *[]config.DbOption, typeMap map[string]string) {
 	for k, v := range typeMap {
 		*genOpts = append(*genOpts, config.WithTypeReplace(k, v))
 	}
 }
 
-func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, templatePath string) {
+// applyGenericOptions function    应用泛型选项.
+func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, templatePath string) error {
 	if len(genericMapTypes) > 0 {
 		*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {
 			options.MapTypes = genericMapTypes
@@ -63,38 +80,53 @@ func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, t
 	}
 
 	if templatePath != "" {
-		if tmpl, _, _ := config.LoadTemplate(templatePath); tmpl != nil {
+		tmpl, _, err := template.Load(templatePath)
+		if err != nil {
+			return errors.WrapWithCode(err, errors.ErrCodeTemplate, "failed to load generic template")
+		}
+		if tmpl != nil {
 			*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {
 				options.Template = tmpl
 			}))
 		}
 	}
+
+	return nil
 }
 
-func buildDBConfig(config config.Db2struct) generator.DBConfig {
+// buildDBConfig function    构建数据库配置.
+func buildDBConfig(cfg config.Db2struct) generator.DBConfig {
 	return generator.DBConfig{
-		User:     config.User,
-		Password: config.Password,
-		DB:       config.Db,
-		Host:     config.Host,
-		Port:     config.Port,
+		User:     cfg.User,
+		Password: cfg.Password,
+		DB:       cfg.Db,
+		Host:     cfg.Host,
+		Port:     cfg.Port,
 	}
 }
 
+// generateModelsForTables function    为指定表生成模型.
 func generateModelsForTables(tables []string, outputPath string, dbConfig generator.DBConfig,
 	genOpts []config.DbOption) error {
 	for _, table := range tables {
 		bytes, err := generator.GenTable(table, dbConfig, genOpts...)
 		if err != nil {
-			log.Printf("generate table [%s] failed: %v", table, err)
+			logger.Error("generate table [%s] failed: %v", table, err)
 			continue
 		}
 
 		filename := strcase.SnakeCase(table) + ".go"
 		filePath := filepath.Join(outputPath, filename)
 		if err = utils.ImportAndWrite(bytes, filePath); err != nil {
-			log.Printf("write file for table [%s] error: %v", table, err)
+			logger.Error("write file for table [%s] error: %v", table, err)
 		}
 	}
 	return nil
+}
+
+// RunAutoDb2Struct function    执行数据库表转结构体（兼容旧接口）.
+func RunAutoDb2Struct(opts *Db2structOptions) {
+	config.ExecuteWithConfig(func(cfg config.Option) error {
+		return Db2struct(context.Background(), opts, cfg)
+	})
 }

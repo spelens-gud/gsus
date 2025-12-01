@@ -1,10 +1,5 @@
 package cmd
 
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
-
 import (
 	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
@@ -14,7 +9,7 @@ import (
 var db2structCmd = &cobra.Command{
 	Use:   "db2struct [tables...]",
 	Short: "从数据库表生成 Go 结构体",
-	Long:  `根据配置文件中的数据库连接信息，将数据库表转换为 Go 结构体代码`,
+	Long:  `根据配置文件中的数据库连接信息，将数据库表转换为 Go 结构体代码。如果不指定表名，则生成所有表的结构体。`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runner.RunAutoDb2Struct(&runner.Db2structOptions{
 			Tables: args,

@@ -1,20 +1,29 @@
-// Package version 管理 gutowire 的版本信息。
-// 版本号可以在编译时通过 -ldflags 设置，或从 Go 模块信息中读取。
+// Package version 提供版本信息管理功能.
 package version
 
-import "runtime/debug"
+import (
+	"fmt"
+	"runtime/debug"
+)
 
-// Build-time parameters set via -ldflags
+var (
+	// Version 版本号（构建时注入）.
+	Version = "devel"
+	// GitCommit Git 提交哈希（构建时注入）.
+	GitCommit = "unknown"
+	// BuildTime 构建时间（构建时注入）.
+	BuildTime = "unknown"
+)
 
-// Version represents the current version of the application.
-// It is set at build time via -ldflags, or defaults to "devel".
-var Version = "devel"
+// Info struct    版本信息.
+type Info struct {
+	Version   string
+	GitCommit string
+	BuildTime string
+}
 
-// init function    初始化版本信息
-// A user may install crush using `go install github.com/charmbracelet/crush@latest`.
-// without -ldflags, in which case the version above is unset. As a workaround
-// we use the embedded build version that *is* set when using `go install` (and
-// is only set for `go install` and not for `go build`).
+// init function    初始化版本信息.
+// 当使用 go install 安装时，会从构建信息中读取版本号.
 func init() {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
@@ -24,4 +33,24 @@ func init() {
 	if mainVersion != "" && mainVersion != "(devel)" {
 		Version = mainVersion
 	}
+}
+
+// Get function    获取版本信息.
+func Get() Info {
+	return Info{
+		Version:   Version,
+		GitCommit: GitCommit,
+		BuildTime: BuildTime,
+	}
+}
+
+// String method    格式化版本信息.
+func (i Info) String() string {
+	return fmt.Sprintf("Version: %s\nGit Commit: %s\nBuild Time: %s",
+		i.Version, i.GitCommit, i.BuildTime)
+}
+
+// Short method    获取简短版本信息.
+func (i Info) Short() string {
+	return i.Version
 }

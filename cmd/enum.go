@@ -1,9 +1,5 @@
 package cmd
 
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
-
 import (
 	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
@@ -13,7 +9,7 @@ import (
 var enumCmd = &cobra.Command{
 	Use:   "enum",
 	Short: "生成枚举类型代码",
-	Long:  `根据配置生成 Go 枚举类型代码`,
+	Long:  `根据配置文件生成 Go 枚举类型代码，支持自定义枚举值和方法`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runner.RunAutoEnum(&runner.EnumOptions{})
 	},

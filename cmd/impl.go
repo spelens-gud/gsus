@@ -1,10 +1,5 @@
 package cmd
 
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
-
 import (
 	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
@@ -16,7 +11,7 @@ var implPrefix string
 var implCmd = &cobra.Command{
 	Use:   "impl [interface] [struct]",
 	Short: "生成接口实现代码",
-	Long:  `根据接口定义生成实现代码`,
+	Long:  `根据接口定义自动生成实现代码骨架，支持自定义文件目录前缀`,
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		runner.RunAutoImpl(&runner.ImplOptions{
@@ -39,5 +34,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// implCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	implCmd.Flags().StringP("prefix", "p", "", "set impl file dir prefix,default [set]")
+	implCmd.Flags().StringVarP(&implPrefix, "prefix", "p", "", "实现文件目录前缀")
 }

@@ -1,10 +1,5 @@
 package cmd
 
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
-
 import (
 	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
@@ -14,11 +9,11 @@ import (
 var routerCmd = &cobra.Command{
 	Use:   "router [service]",
 	Short: "生成 HTTP 路由代码",
-	Long:  `根据配置生成 HTTP 路由相关代码`,
+	Long:  `根据服务定义生成 HTTP 路由注册代码`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		runner.RunAutoRouter(&runner.RouterOptions{
-			Args: args[0],
+			RouterPath: args[0],
 		})
 	},
 }

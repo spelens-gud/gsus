@@ -9,7 +9,7 @@ import (
 type t struct{}
 
 func init() {
-	GoGetUrl = strings.TrimSuffix(reflect.TypeOf(t{}).PkgPath(), "/internal/constant") + "/cmd/gsus"
+	GoGetUrl = strings.TrimSuffix(reflect.TypeOf(t{}).PkgPath(), "/internal/config/const") + "/cmd/gsus"
 }
 
 var (
