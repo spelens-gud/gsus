@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. See [conven
 ### Miscellaneous Chores
 
 - update CHANGELOG.md - ([35b0be6](https://github.com/Anniext/demo/commit/35b0be6f7d93cc710a1cf9e6d7faaff719012934)) - spelens-gud
+- update CHANGELOG.md - ([0583560](https://github.com/Anniext/demo/commit/05835605dff946501ac8d61be7c09c0566155ea6)) - spelens-gud
 
 ### Other
 
