@@ -1,0 +1,79 @@
+package basetmpl
+
+const (
+	DefaultModelGenericTemplate = `
+type {{ .Type }}Slice  []{{ .Type }}
+
+func (this {{ .Type }}Slice) ForEach(f func(index int,t *{{ .Type }})) {
+	if len(this) == 0 {
+		return
+	}
+	for i := range this {
+		f(i,&this[i])
+	}
+}
+
+func (this {{ .Type }}Slice) Filter(f func(t *{{ .Type }}) bool) {{ .Type }}Slice {
+	if len(this) == 0 {
+		return nil
+	}
+	n := make({{ .Type }}Slice, 0, len(this))
+	this.ForEach(func(_ int,t *{{ .Type }}) {
+		if f(t) {
+			n = append(n, *t)
+		}
+	})
+	return n
+}
+
+{{ $type := .Type }}
+{{ range .MapTypes }}
+type  {{ $type }}{{ .MapType }}Map map[{{ .MapBType }}]*{{ $type }}
+
+func (this {{ $type }}{{ .MapType }}Map) ForEach(f func(key {{ .MapBType }},t *{{ $type }})) {
+	if len(this) == 0 {
+		return
+	}
+    for k := range this {
+        f(k,this[k])
+    }
+}
+
+
+func (this {{ $type }}Slice) Map{{ .MapType }}(mapFunc func(*{{ $type }}) {{ .MapBType }}) (ret []{{ .MapBType }}) {
+	if len(this) == 0 {
+		return nil
+	}
+	ret = make([]{{ .MapBType }}, 0, len(this))
+	this.ForEach(func(_ int,t *{{ $type }}) {
+		ret = append(ret, mapFunc(t))
+	})
+	return ret
+}
+
+
+func (this {{ $type }}Slice) Group{{ .MapType }}(mapFunc func(*{{ $type }}) {{ .MapBType }}) (ret map[{{ .MapBType }}]{{ $type }}Slice) {
+	if len(this) == 0 {
+		return nil
+	}
+	ret = make(map[{{ .MapBType }}]{{ $type }}Slice)
+	this.ForEach(func(_ int,t *{{ $type }}) {
+		ret[mapFunc(t)] = append(ret[mapFunc(t)], *t)
+	})
+	return ret
+}
+
+func (this {{ $type }}Slice) To{{ .MapType }}Map(indexBy func(t *{{ $type }}) {{ .MapBType }}) (m {{ $type }}{{ .MapType }}Map) {
+	if len(this) == 0 {
+		return nil
+	}
+	m = make({{ $type }}{{ .MapType }}Map)
+	this.ForEach(func(_ int,t *{{ $type }}) {
+		m[indexBy(t)] = t
+	})
+	return m
+}
+{{ end }}
+
+`
+)
