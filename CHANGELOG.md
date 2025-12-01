@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. See [conven
 - update CHANGELOG.md - ([0583560](https://github.com/Anniext/demo/commit/05835605dff946501ac8d61be7c09c0566155ea6)) - spelens-gud
 - update CHANGELOG.md - ([5aec809](https://github.com/Anniext/demo/commit/5aec809afa1b81b691d2d3e3f68d6011718fc8ec)) - spelens-gud
 - update CHANGELOG.md - ([950254d](https://github.com/Anniext/demo/commit/950254d7092c50f08507121a1593a1a6d3c1401d)) - spelens-gud
+- update CHANGELOG.md - ([4d736b8](https://github.com/Anniext/demo/commit/4d736b8f706101d299a0726c38281ab139682bfd)) - spelens-gud
 
 ### Other
 
