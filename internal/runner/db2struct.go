@@ -20,12 +20,22 @@ type Db2structOptions struct {
 
 // Db2struct function    执行数据库表转结构体.
 func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) error {
+	log := logger.WithPrefix("[db2struct]")
+	log.Info("开始执行数据库表转结构体")
+
 	var genOpts []config.DbOption
 	db2structConfig := cfg.Db2struct
+
+	// 验证数据库配置
+	if err := validateDBConfig(db2structConfig); err != nil {
+		log.Error("数据库配置验证失败: %v", err)
+		return err
+	}
 
 	// 设置默认输出路径
 	if len(db2structConfig.Path) == 0 {
 		db2structConfig.Path = "./internal/model"
+		log.Debug("使用默认输出路径: %s", db2structConfig.Path)
 	}
 
 	// 构建生成选项
@@ -41,12 +51,14 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 	if err := utils.FixFilepathByProjectDir(&db2structConfig.Path); err != nil {
 		return errors.WrapWithCode(err, errors.ErrCodeFile, "failed to resolve output path")
 	}
+	log.Debug("输出路径: %s", db2structConfig.Path)
 
 	// 应用类型替换
 	applyTypeReplacements(&genOpts, db2structConfig.TypeMap)
 
 	// 应用泛型选项
 	if err := applyGenericOptions(&genOpts, db2structConfig.GenericMapTypes, db2structConfig.GenericTemplate); err != nil {
+		log.Error("应用泛型选项失败: %v", err)
 		return err
 	}
 
@@ -55,12 +67,15 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 
 	// 生成所有表或指定表
 	if len(opts.Tables) == 0 {
+		log.Info("生成所有表的结构体")
 		if err := generator.GenAllDb2Struct(db2structConfig.Path, dbConfig, genOpts...); err != nil {
 			return errors.WrapWithCode(err, errors.ErrCodeGenerate, "failed to generate all tables")
 		}
+		log.Info("所有表生成完成")
 		return nil
 	}
 
+	log.Info("生成指定表的结构体: %v", opts.Tables)
 	return generateModelsForTables(opts.Tables, db2structConfig.Path, dbConfig, genOpts)
 }
 
@@ -122,6 +137,12 @@ func generateModelsForTables(tables []string, outputPath string, dbConfig genera
 		}
 	}
 	return nil
+}
+
+// validateDBConfig function    验证数据库配置.
+func validateDBConfig(cfg config.Db2struct) error {
+	// 导入 validator 包
+	return nil // 这里可以添加具体的验证逻辑
 }
 
 // RunAutoDb2Struct function    执行数据库表转结构体（兼容旧接口）.
