@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/spelens-gud/gsus/internal/config"
 	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/generator"
+	"github.com/spelens-gud/gsus/internal/logger"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
 )
@@ -19,36 +21,49 @@ type TemplateOptions struct {
 	Overwrite bool     // 是否覆盖已存在的文件
 }
 
+func Template(ctx context.Context, opts *TemplateOptions) error {
+	log := logger.WithPrefix("[template]")
+	log.Info("开始执行 template 代码生成")
+
+	cfg, err := config.Get()
+	if err != nil {
+		log.Error("获取配置文件错误")
+		return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("获取配置文件错误: %s", err))
+	}
+
+	if len(cfg.Templates.ModelPath) == 0 {
+		cfg.Templates.ModelPath = cfg.Db2struct.Path
+	}
+
+	if err = utils.FixFilepathByProjectDir(&cfg.Templates.ModelPath); err != nil {
+		log.Error("无法解析模型路径")
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("按项目目录修复文件路径: %s", err))
+	}
+
+	models := opts.Models
+	if len(models) == 0 && opts.GenAll {
+		models, err = collectModelsFromPath(cfg.Templates.ModelPath)
+		if err != nil {
+			log.Error("无法解析模型路径")
+			return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析模型路径: %s", err))
+		}
+	}
+
+	for _, model := range models {
+		if err = processModel(model, cfg, opts); err != nil {
+			log.Error("生成模板代码失败")
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成模板代码失败: %s", err))
+		}
+	}
+
+	log.Info("生成模板代码成功")
+	return nil
+}
+
 // RunAutoTemplate function    执行模板操作.
 func RunAutoTemplate(opts *TemplateOptions) {
 	config.ExecuteWithConfig(func(cfg config.Option) (err error) {
-		cfg, err = config.Get()
-		if err != nil {
-			return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("获取配置文件错误: %s", err))
-		}
-
-		if len(cfg.Templates.ModelPath) == 0 {
-			cfg.Templates.ModelPath = cfg.Db2struct.Path
-		}
-
-		if err = utils.FixFilepathByProjectDir(&cfg.Templates.ModelPath); err != nil {
-			return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("按项目目录修复文件路径: %s", err))
-		}
-
-		models := opts.Models
-		if len(models) == 0 && opts.GenAll {
-			models, err = collectModelsFromPath(cfg.Templates.ModelPath)
-			if err != nil {
-				return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析模型路径: %s", err))
-			}
-		}
-
-		for _, model := range models {
-			if err = processModel(model, cfg, opts); err != nil {
-				return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成模板代码失败: %s", err))
-			}
-		}
-		return nil
+		return Template(context.Background(), opts)
 	})
 }
 

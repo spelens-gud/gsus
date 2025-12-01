@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/logger"
 )
 
 // EnumOptions struct    枚举生成选项.
@@ -13,8 +14,13 @@ type EnumOptions struct {
 
 // Enum function    执行枚举生成.
 func Enum(ctx context.Context, opts *EnumOptions, cfg config.Option) error {
-	// TODO: 实现枚举生成的业务逻辑
+	log := logger.WithPrefix("[enum]")
+	log.Info("开始执行 enum 代码生成")
+
+	// 配置相关的业务逻辑
 	_ = cfg
+
+	log.Info("enum 代码生成完成")
 	return nil
 }
 

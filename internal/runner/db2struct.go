@@ -22,7 +22,7 @@ type Db2structOptions struct {
 // Db2struct function    执行数据库表转结构体.
 func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) error {
 	log := logger.WithPrefix("[db2struct]")
-	log.Info("开始执行数据库表转结构体")
+	log.Info("开始执行数据库表转结构体代码生成")
 
 	var genOpts []config.DbOption
 	db2structConfig := cfg.Db2struct
