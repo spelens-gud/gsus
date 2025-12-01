@@ -1,4 +1,4 @@
-package fileconfig
+package config
 
 import (
 	"fmt"
@@ -9,18 +9,18 @@ import (
 )
 
 var (
-	loadError error
-	config    Config
-	once      sync.Once
-
-	configPath = ".gsus/config.yaml"
+	loadError  error                 // 错误信息
+	config     Option                // 配置信息
+	once       sync.Once             // 锁
+	configPath = ".gsus/config.yaml" // 配置文件路径
 )
 
-func Get() (Config, error) {
+func Get() (Option, error) {
 	once.Do(func() {
 		var content []byte
 		if content, loadError = helpers.LoadConfig(configPath); loadError != nil {
-			loadError = fmt.Errorf("load project gsus config failed,run [ gsus init ] to init project gsus config.\nerror: %w", loadError)
+			loadError = fmt.Errorf("load project gsus config failed,run [ gsus init ] to init project gsus config.\nerror: %w",
+				loadError)
 			return
 		}
 		if loadError = yaml.Unmarshal(content, &config); loadError != nil {

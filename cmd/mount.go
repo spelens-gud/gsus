@@ -6,22 +6,19 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
 
 import (
-	"github.com/spelens-gud/gsus/internal/mount"
+	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
 // mountCmd represents the mount command.
 var mountCmd = &cobra.Command{
-	Use:   "mount",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "mount [args...]",
+	Short: "挂载相关操作",
+	Long:  `执行挂载相关的代码生成操作`,
 	Run: func(cmd *cobra.Command, args []string) {
-		mount.Run(cmd, args)
+		runner.RunAutoMount(&runner.MountOptions{
+			Args: args,
+		})
 	},
 }
 

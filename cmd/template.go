@@ -1,26 +1,30 @@
+package cmd
+
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
-package cmd
 
 import (
-	"fmt"
-
+	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
-// templateCmd represents the template command
-var templateCmd = &cobra.Command{
-	Use:   "template",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+var (
+	templateGenAll    bool
+	templateOverwrite bool
+)
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+// templateCmd represents the template command.
+var templateCmd = &cobra.Command{
+	Use:   "template [models...]",
+	Short: "模板管理",
+	Long:  `根据模型生成代码，支持自定义模板`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("template called")
+		runner.RunAutoTemplate(&runner.TemplateOptions{
+			Models:    args,
+			GenAll:    templateGenAll,
+			Overwrite: templateOverwrite,
+		})
 	},
 }
 
@@ -36,4 +40,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// templateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	templateCmd.Flags().BoolVar(&templateGenAll, "all", false, "generate all model")
+	templateCmd.Flags().BoolVar(&templateOverwrite, "overwrite", false, "overwrite files")
 }

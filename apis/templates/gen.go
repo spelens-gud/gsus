@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/spelens-gud/gsus/apis/helpers"
-	"github.com/spelens-gud/gsus/internal/fileconfig"
+	"github.com/spelens-gud/gsus/internal/config"
 	"github.com/stoewer/go-strcase"
 )
 
@@ -40,10 +40,10 @@ type Config struct {
 	ModelName string
 	ModelPath string
 	Overwrite bool
-	Templates []fileconfig.Template
+	Templates []config.Template
 }
 
-func Gen(cfg Config, mainConfig fileconfig.Config) (err error) {
+func Gen(cfg Config, mainConfig config.Option) (err error) {
 	tableBytes, astFile, err := getTableFile(cfg.ModelName, cfg.ModelPath)
 	if err != nil {
 		return

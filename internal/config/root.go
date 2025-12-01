@@ -1,6 +1,6 @@
-package fileconfig
+package config
 
-type Config struct {
+type Option struct {
 	Gsus      Gsus      `yaml:"gsus"`
 	Db2struct Db2struct `yaml:"db2struct"`
 	Enum      Enum      `yaml:"enum"`

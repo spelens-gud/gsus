@@ -1,0 +1,88 @@
+package runner
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/spelens-gud/gsus/apis/constant"
+	"github.com/spelens-gud/gsus/apis/helpers"
+	"github.com/spelens-gud/gsus/apis/helpers/executor"
+	"github.com/spelens-gud/gsus/basetmpl"
+	"github.com/spelens-gud/gsus/internal/config"
+	"gopkg.in/yaml.v3"
+)
+
+// InitOptions struct    初始化选项.
+type InitOptions struct {
+	// 预留扩展字段
+}
+
+// RunAutoInit function    执行项目初始化.
+func RunAutoInit(opts *InitOptions) {
+	executor.Execute(func() (err error) {
+		// 检查配置是否已存在
+		if _, err := config.Get(); err == nil {
+			return fmt.Errorf("gsus has already init in project,run [ gsus update ] to update templates")
+		}
+
+		// 获取项目目录
+		dir, err := helpers.GetProjectDir()
+		if err != nil {
+			return err
+		}
+
+		// 创建 .gsus 目录
+		if err = os.Mkdir(filepath.Join(dir, constant.ConfigDir), 0775); err != nil {
+			return err
+		}
+
+		// 解析默认配置
+		var tmp config.Option
+		if err = yaml.Unmarshal([]byte(basetmpl.DefaultConfigYaml), &tmp); err != nil {
+			return err
+		}
+		bytes, err := yaml.Marshal(&tmp)
+		if err != nil {
+			return err
+		}
+
+		// 写入默认配置文件
+		if err = os.WriteFile(filepath.Join(dir, constant.ConfigFile), bytes, 0664); err != nil {
+			return err
+		}
+
+		// 创建模板目录
+		if err = os.Mkdir(filepath.Join(dir, constant.TemplateDir), 0775); err != nil {
+			return err
+		}
+
+		// 写入模板文件
+		return writeTemplates(dir, getTemplateMap())
+	})
+}
+
+func writeTemplates(dir string, contentMap map[string]string) error {
+	for path, content := range contentMap {
+		p := filepath.Join(dir, constant.TemplateDir, path+constant.TemplateSuffix)
+		if err := os.WriteFile(p, []byte(content), 0664); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getTemplateMap() map[string]string {
+	return map[string]string{
+		"impl":             basetmpl.DefaultImplTemplate,
+		"http_router":      basetmpl.DefaultHttpRouterTemplate,
+		"http_client_api":  basetmpl.DefaultHttpClientApiTemplate,
+		"http_client_base": basetmpl.DefaultHttpClientBaseTemplate,
+		"dao":              basetmpl.DefaultDaoTemplate,
+		"dao_impl":         basetmpl.DefaultDaoImplTemplate,
+		"service":          basetmpl.DefaultServiceTemplate,
+		"service_impl":     basetmpl.DefaultServiceImplTemplate,
+		"model_cast":       basetmpl.DefaultModelCastTemplate,
+		"model_generic":    basetmpl.DefaultModelGenericTemplate,
+	}
+}

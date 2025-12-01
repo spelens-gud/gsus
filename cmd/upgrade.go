@@ -1,26 +1,25 @@
+package cmd
+
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
-package cmd
 
 import (
-	"fmt"
-
+	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
-// upgradeCmd represents the upgrade command
+var upgradeVerbose bool
+
+// upgradeCmd represents the upgrade command.
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "升级 gsus 工具",
+	Long:  `升级 gsus 工具到最新版本`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("upgrade called")
+		runner.RunAutoUpgrade(&runner.UpgradeOptions{
+			Verbose: upgradeVerbose,
+		})
 	},
 }
 
@@ -36,4 +35,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// upgradeCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	upgradeCmd.Flags().BoolVarP(&upgradeVerbose, "verbose", "v", false, "log more detail")
 }

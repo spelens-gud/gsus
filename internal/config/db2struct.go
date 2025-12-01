@@ -1,4 +1,4 @@
-package fileconfig
+package config
 
 type Db2struct struct {
 	User            string            `yaml:"user"`

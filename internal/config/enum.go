@@ -1,4 +1,4 @@
-package fileconfig
+package config
 
 type Enum struct {
 	Scope    string `yaml:"scope"`

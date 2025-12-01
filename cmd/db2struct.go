@@ -6,22 +6,19 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
 
 import (
-	"github.com/spelens-gud/gsus/internal/db2struct"
+	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
 // db2structCmd represents the db2struct command.
 var db2structCmd = &cobra.Command{
-	Use:   "db2struct",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "db2struct [tables...]",
+	Short: "从数据库表生成 Go 结构体",
+	Long:  `根据配置文件中的数据库连接信息，将数据库表转换为 Go 结构体代码`,
 	Run: func(cmd *cobra.Command, args []string) {
-		db2struct.Run(cmd, args)
+		runner.RunAutoDb2Struct(&runner.Db2structOptions{
+			Tables: args,
+		})
 	},
 }
 

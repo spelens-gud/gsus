@@ -1,4 +1,4 @@
-package fileconfig
+package config
 
 type Swagger struct {
 	Path        string `yaml:"path"`

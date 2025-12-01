@@ -6,24 +6,25 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
 
 import (
-	"github.com/spelens-gud/gsus/internal/impl"
+	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
+var implPrefix string
+
 // implCmd represents the impl command.
 var implCmd = &cobra.Command{
-	Use:   "impl",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "impl [interface] [struct]",
+	Short: "生成接口实现代码",
+	Long:  `根据接口定义生成实现代码`,
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		impl.Run(cmd, args)
+		runner.RunAutoImpl(&runner.ImplOptions{
+			Interface: args[0],
+			Struct:    args[1],
+			Prefix:    implPrefix,
+		})
 	},
-	Args: cobra.ExactArgs(2),
 }
 
 func init() {

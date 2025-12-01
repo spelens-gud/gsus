@@ -6,24 +6,21 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
 
 import (
-	"github.com/spelens-gud/gsus/internal/http/router"
+	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
 // routerCmd represents the router command.
 var routerCmd = &cobra.Command{
-	Use:   "router",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "router [service]",
+	Short: "生成 HTTP 路由代码",
+	Long:  `根据配置生成 HTTP 路由相关代码`,
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		router.Run(cmd, args)
+		runner.RunAutoRouter(&runner.RouterOptions{
+			Args: args[0],
+		})
 	},
-	Args: cobra.ExactArgs(1),
 }
 
 func init() {

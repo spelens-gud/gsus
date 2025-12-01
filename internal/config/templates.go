@@ -1,4 +1,4 @@
-package fileconfig
+package config
 
 type Templates struct {
 	ModelPath string     `yaml:"modelPath"`

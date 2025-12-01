@@ -1,4 +1,4 @@
-package impl
+package runner
 
 import (
 	"fmt"
@@ -9,24 +9,30 @@ import (
 	"github.com/spelens-gud/gsus/apis/helpers/executor"
 	"github.com/spelens-gud/gsus/apis/syncimpl"
 	"github.com/spelens-gud/gsus/basetmpl"
-	"github.com/spelens-gud/gsus/internal/fileconfig"
-	"github.com/spf13/cobra"
+	"github.com/spelens-gud/gsus/internal/config"
 )
 
-func Run(cmd *cobra.Command, args []string) {
-	executor.ExecuteWithConfig(func(_ fileconfig.Config) (err error) {
+// ImplOptions struct    实现生成选项.
+type ImplOptions struct {
+	Interface string // 接口名称
+	Struct    string // 实现目录
+	Prefix    string // 文件目录前缀
+}
+
+func RunAutoImpl(opts *ImplOptions) {
+	executor.ExecuteWithConfig(func(_ config.Option) (err error) {
 		syncConfig := &syncimpl.Config{
-			SetName:       args[0],
-			ImplementsDir: args[1],
+			SetName:       opts.Interface,
+			ImplementsDir: opts.Struct,
 			Scope:         "./",
-			Prefix:        cmd.Flag("prefix").Value.String(),
+			Prefix:        opts.Prefix,
 		}
 
-		if err = helpers.FixFilepathByProjectDir(&args[1], &syncConfig.Scope); err != nil {
+		if err = helpers.FixFilepathByProjectDir(&opts.Struct, &syncConfig.Scope); err != nil {
 			return fmt.Errorf("init implement dir error: %v", err)
 		}
 
-		templatePath := filepath.Join(args[1], ".gsus.impl"+constant.TemplateSuffix)
+		templatePath := filepath.Join(opts.Struct, ".gsus.impl"+constant.TemplateSuffix)
 		temp, _, err := helpers.InitTemplateAndLoad(templatePath, basetmpl.DefaultImplTemplate)
 		if err != nil {
 			return fmt.Errorf("load implement init template error: %v", err)

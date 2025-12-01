@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spelens-gud/gsus/apis/helpers"
-	"github.com/spelens-gud/gsus/internal/fileconfig"
+	"github.com/spelens-gud/gsus/internal/config"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -30,9 +30,9 @@ func Execute(f func() (err error)) {
 	err = f()
 }
 
-func ExecuteWithConfig(f func(cfg fileconfig.Config) (err error)) {
+func ExecuteWithConfig(f func(cfg config.Option) (err error)) {
 	Execute(func() (err error) {
-		cfg, _ := fileconfig.Get()
+		cfg, _ := config.Get()
 		return f(cfg)
 	})
 }

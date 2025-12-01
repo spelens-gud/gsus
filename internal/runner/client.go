@@ -1,6 +1,7 @@
-package client
+package runner
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/spelens-gud/gsus/apis/constant"
@@ -9,34 +10,41 @@ import (
 	"github.com/spelens-gud/gsus/apis/httpgen"
 	"github.com/spelens-gud/gsus/apis/httpgen/clientgen"
 	"github.com/spelens-gud/gsus/basetmpl"
-	"github.com/spelens-gud/gsus/internal/fileconfig"
-	"github.com/spelens-gud/gsus/internal/http/services"
-	"github.com/spf13/cobra"
+	"github.com/spelens-gud/gsus/internal/config"
 )
 
-func Run(cmd *cobra.Command, args []string) {
-	executor.ExecuteWithConfig(func(_ fileconfig.Config) (err error) {
-		clientPath := args[0]
+type ClientOptions struct {
+	Args string // 命令参数
+}
 
-		if err = helpers.FixFilepathByProjectDir(&clientPath); err != nil {
-			return
+func RunAutoClient(opts *ClientOptions) {
+	executor.ExecuteWithConfig(func(_ config.Option) (err error) {
+		if len(opts.Args) == 0 {
+			return fmt.Errorf("client path is required")
+		}
+		clientPath := opts.Args
+		if len(clientPath) == 0 {
+			return fmt.Errorf("client path is required")
 		}
 
-		svc, err := services.SearchServices("./")
+		if err := helpers.FixFilepathByProjectDir(&clientPath); err != nil {
+			return err
+		}
+
+		svc, err := SearchServices("./")
 		if err != nil {
-			return
+			return err
 		}
 
 		apiGroups, err := httpgen.ParseApiFromService(svc)
 		if err != nil {
-			return
+			return err
 		}
 
 		templatePath := filepath.Join(clientPath, ".gsus.client_api"+constant.TemplateSuffix)
-
 		apiTemplate, _, err := helpers.InitTemplateAndLoad(templatePath, basetmpl.DefaultHttpClientApiTemplate)
 		if err != nil {
-			return
+			return err
 		}
 
 		return clientgen.GenClients(apiGroups, func(option *clientgen.GenOption) {

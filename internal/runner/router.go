@@ -1,4 +1,4 @@
-package router
+package runner
 
 import (
 	"fmt"
@@ -10,27 +10,30 @@ import (
 	"github.com/spelens-gud/gsus/apis/httpgen"
 	"github.com/spelens-gud/gsus/apis/httpgen/routergen"
 	"github.com/spelens-gud/gsus/basetmpl"
-	"github.com/spelens-gud/gsus/internal/fileconfig"
-	"github.com/spelens-gud/gsus/internal/http/services"
-	"github.com/spf13/cobra"
+	"github.com/spelens-gud/gsus/internal/config"
 )
 
-const defaultTemplateFileName = ".gsus.router" + constant.TemplateSuffix
+type RouterOptions struct {
+	Args string // 命令参数
+}
 
-func Run(cmd *cobra.Command, args []string) {
-	executor.ExecuteWithConfig(func(_ fileconfig.Config) (err error) {
-		routerPath := args[0]
+func RunAutoRouter(opts *RouterOptions) {
+	executor.ExecuteWithConfig(func(_ config.Option) (err error) {
+		if len(opts.Args) == 0 {
+			return fmt.Errorf("client path is required")
+		}
+		routerPath := opts.Args
 		if len(routerPath) == 0 {
 			routerPath = "./api"
 		}
 
 		if err = helpers.FixFilepathByProjectDir(&routerPath); err != nil {
-			return
+			return err
 		}
 
-		svc, err := services.SearchServices("./")
+		svc, err := SearchServices("./")
 		if err != nil {
-			return
+			return err
 		}
 
 		apiGroups, err := httpgen.ParseApiFromService(svc)
@@ -38,7 +41,7 @@ func Run(cmd *cobra.Command, args []string) {
 			return fmt.Errorf("parse http api annotation error: %v", err)
 		}
 
-		templatePath := filepath.Join(routerPath, defaultTemplateFileName)
+		templatePath := filepath.Join(routerPath, ".gsus.router"+constant.TemplateSuffix)
 
 		customTemplate, hash, err := helpers.InitTemplateAndLoad(templatePath, basetmpl.DefaultHttpRouterTemplate)
 		if err != nil {
