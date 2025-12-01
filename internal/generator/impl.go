@@ -7,7 +7,6 @@ import (
 	"go/format"
 	"go/token"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"text/template"
 
 	"github.com/spelens-gud/gsus/internal/errors"
+	"github.com/spelens-gud/gsus/internal/logger"
 	template2 "github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
@@ -97,10 +97,10 @@ func (cfg Config) SyncInterfaceImpls() (err error) {
 			var updated int
 			updated, err = syncer.sync()
 			if err != nil {
-				log.Printf("sync interface [ %s.%s ] err: %v", item.PackageName, item.Name, err)
+				logger.Error("sync interface [ %s.%s ] err: %v", item.PackageName, item.Name, err)
 				return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("同步接口实现失败%s", err))
 			}
-			log.Printf("interface [ %s.%s ] sync finished,[ %d ] functions updated", item.PackageName, item.Name, updated)
+			logger.Info("interface [ %s.%s ] sync finished,[ %d ] functions updated", item.PackageName, item.Name, updated)
 			return nil
 		})
 	}
@@ -191,7 +191,7 @@ func (s implsSync) sync() (updated int, err error) {
 	// 未有实现结构体 创建
 	if len(implStructDeclPath) == 0 {
 		fp := filepath.Join(s.implDir, "init.go")
-		log.Printf("implement for [ %s.%s ] not found,create in [ %s ]", s.InterfacePackageName, s.InterfaceName, fp)
+		logger.Info("implement for [ %s.%s ] not found,create in [ %s ]", s.InterfacePackageName, s.InterfaceName, fp)
 		if err = utils.ExecuteTemplateAndWrite(s.implStructTemplate, s, fp); err != nil {
 			return 0, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成实现结构体文件失败:%s", err))
 		}
@@ -276,7 +276,7 @@ func (s implsSync) updateFileImplements(fp string, ifaceFuncMap map[string]iface
 			continue
 		}
 
-		log.Printf("update [ func(%s)%s%s ] => [ func%s ] in [ %s ]", s.ImplStructName, name, newFunc, interfaceFunc.string, fp)
+		logger.Info("update [ func(%s)%s%s ] => [ func%s ] in [ %s ]", s.ImplStructName, name, newFunc, interfaceFunc.string, fp)
 
 		bf.Reset()
 		bf.WriteString(string(data[:f.Type.Params.Pos()-1]))
@@ -304,25 +304,25 @@ func (s implsSync) appendNewFunc(name string, f ifaceFunc) (err error) {
 		interfacePkgName, _ := s.getImportedName(astF)
 		funcBody, funcStr, err := s.getFunc(f.FuncType, interfacePkgName, name)
 		if err != nil {
-			log.Printf("get func body error: %v", name)
+			logger.Error("get func body error: %v", name)
 			return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("获取函数数失败: %s", err))
 		}
 		bf.Write(data)
 		bf.WriteString("\n\n\n" + funcBody)
-		log.Printf("sync [ %s ] in [ %s ]", funcStr, fp)
+		logger.Info("sync [ %s ] in [ %s ]", funcStr, fp)
 	} else {
 		bf.WriteString(`package ` + s.ImplPackage)
 		bf.WriteString("\n\nimport " + fmt.Sprintf(`%s "%s"`, s.InterfacePackageName, s.InterfacePackagePath))
 		funcBody, funcStr, err := s.getFunc(f.FuncType, s.InterfacePackageName, name)
 		if err != nil {
-			log.Printf("get func body error: %v", name)
+			logger.Error("get func body error: %v", name)
 			return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("获取函数数失败: %s", err))
 		}
 		bf.WriteString(funcBody)
-		log.Printf("sync [ %s ] in [ %s ]", funcStr, fp)
+		logger.Info("sync [ %s ] in [ %s ]", funcStr, fp)
 	}
 	if err = utils.ImportAndWrite(bf.Bytes(), fp); err != nil {
-		log.Printf("%v", bf.Bytes())
+		logger.Error("%v", bf.Bytes())
 		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("写入文件失败: %s", err))
 	}
 	return nil
@@ -406,7 +406,7 @@ type Interface struct {
 func matchInterface(scope string, ident string) (fields []Interface) {
 	regexConfig, err := regexp.Compile(`@` + ident + `\((.*?)\)`)
 	if err != nil {
-		log.Printf("编译正则表达式失败: %v", err)
+		logger.Error("编译正则表达式失败: %v", err)
 		return
 	}
 	mu := sync.Mutex{}

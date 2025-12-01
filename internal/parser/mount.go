@@ -6,12 +6,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/errors"
+	"github.com/spelens-gud/gsus/internal/logger"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -140,7 +140,7 @@ func (sSet *StructMounter) MountTypeField(fieldType, fieldName, pkgPath string) 
 		}
 	}
 
-	log.Printf("mount %s [ %s ] as %s on [ %s.%s ]", pkgPath, fieldType, fieldName, sSet.AstFile.Name.Name, sSet.StructName)
+	logger.Info("mount %s [ %s ] as %s on [ %s.%s ]", pkgPath, fieldType, fieldName, sSet.AstFile.Name.Name, sSet.StructName)
 
 	if err = sSet.insertField(fieldType, fieldName, fields.Fields); err != nil {
 		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("挂载字段失败: %s", err))

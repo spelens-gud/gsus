@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/logger"
 )
 
 // UpgradeOptions struct    升级选项.
@@ -25,7 +25,7 @@ func RunAutoUpgrade(opts *UpgradeOptions) {
 			vStr = "-v"
 		}
 
-		log.Printf("updating gsus from [ %s ] ...", config.GoGetUrl)
+		logger.Info("updating gsus from [ %s ] ...", config.GoGetUrl)
 		if err = execCommand("go", "get", "-u", vStr, config.GoGetUrl); err == nil {
 			return nil
 		}

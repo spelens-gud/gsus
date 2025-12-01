@@ -2,13 +2,13 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/errors"
+	"github.com/spelens-gud/gsus/internal/logger"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -31,9 +31,9 @@ func Execute(f func() (err error)) {
 			var e *exec.ExitError
 			switch {
 			case errors.As(err, e):
-				log.Fatalf("%v: %s", err, e.Stderr)
+				logger.Fatal("%v: %s", err, e.Stderr)
 			default:
-				log.Fatalf("%+v", err)
+				logger.Fatal("%+v", err)
 			}
 		}
 	}()

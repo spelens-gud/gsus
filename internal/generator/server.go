@@ -7,13 +7,13 @@ import (
 	"go/format"
 	goparser "go/parser"
 	"go/token"
-	"log"
 	"os"
 	"regexp"
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/config"
 	"github.com/spelens-gud/gsus/internal/errors"
+	"github.com/spelens-gud/gsus/internal/logger"
 	"github.com/spelens-gud/gsus/internal/parser"
 )
 
@@ -23,7 +23,6 @@ const (
 
 var (
 	apiAnnotateRegex = regexp.MustCompile(`@(!?[A-Za-z0-9_.:]+?)\((.+?)\)`)
-	logger           = log.New(os.Stdout, "[SVC] ", 0)
 )
 
 type AnnotateParser struct {
@@ -229,7 +228,7 @@ func AnalysisServiceWithFileToken(fileData []byte, serviceName, namespace string
 		}
 	}
 	apiAnnotate = aParser.m
-	logger.Printf("analysis finished: %s", serviceName)
+	logger.Info("analysis finished: %s", serviceName)
 	return
 }
 

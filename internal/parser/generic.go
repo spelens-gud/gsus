@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/spelens-gud/gsus/internal/config"
 	"github.com/spelens-gud/gsus/internal/errors"
+	"github.com/spelens-gud/gsus/internal/logger"
 	template2 "github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"golang.org/x/text/cases"
@@ -74,7 +74,7 @@ type GenOptions struct {
 func (opt *GenOptions) WriteApiFiles(baseDir string, route *ApiGroup) (err error) {
 	defer func() {
 		if err != nil {
-			log.Printf("generate http router error [ %s ]:%v", route.Filepath, err)
+			logger.Error("generate http router error [ %s ]:%v", route.Filepath, err)
 		}
 	}()
 
@@ -88,12 +88,12 @@ func (opt *GenOptions) WriteApiFiles(baseDir string, route *ApiGroup) (err error
 			if !opt.DisableSkip {
 				route.Skip = true
 			}
-			log.Printf("generate [ %s ] hash unchanged,skip", route.Filepath)
+			logger.Info("generate [ %s ] hash unchanged,skip", route.Filepath)
 			return errors.New(errors.ErrCodeGenerate, "skip")
 		}
 	}
 
-	log.Printf("generating http router [ %s ]", route.Filepath)
+	logger.Info("generating http router [ %s ]", route.Filepath)
 	if err = utils.ExecuteTemplateAndWrite(opt.Template, route, fp); err != nil {
 		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成文件 [ %s ] 失败", route.Filepath))
 	}
