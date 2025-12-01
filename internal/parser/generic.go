@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	template2 "github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"golang.org/x/text/cases"
@@ -57,7 +58,7 @@ func NewType(typeName, pkg string, opts ...func(o *config.Options)) (res string,
 
 	ret, err := utils.ExecuteTemplate(o.Template, t)
 	if err != nil {
-		return
+		return res, errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("模板执行失败: %s", err))
 	}
 	res = string(ret)
 	return
@@ -88,13 +89,13 @@ func (opt *GenOptions) WriteApiFiles(baseDir string, route *ApiGroup) (err error
 				route.Skip = true
 			}
 			log.Printf("generate [ %s ] hash unchanged,skip", route.Filepath)
-			return
+			return errors.New(errors.ErrCodeGenerate, "skip")
 		}
 	}
 
 	log.Printf("generating http router [ %s ]", route.Filepath)
 	if err = utils.ExecuteTemplateAndWrite(opt.Template, route, fp); err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成文件 [ %s ] 失败", route.Filepath))
 	}
 	return
 }

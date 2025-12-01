@@ -2,6 +2,7 @@ package generator
 
 import (
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"path/filepath"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/parser"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
@@ -27,6 +29,7 @@ type MatchStruct struct {
 	Path              string
 }
 
+// Exec function    执行挂载操作.
 func Exec(cfg config.Mount) (err error) {
 	if len(cfg.Scope) == 0 {
 		cfg.Scope = "./"
@@ -38,7 +41,7 @@ func Exec(cfg config.Mount) (err error) {
 
 	mountTargetStructs := matchFields(cfg.Scope, cfg.Name, false)
 	if len(mountTargetStructs) == 0 {
-		return
+		return nil
 	}
 
 	specName := make(map[string]bool)
@@ -66,7 +69,7 @@ func Exec(cfg config.Mount) (err error) {
 			Path:   st.Path,
 			Struct: st.Type,
 		}, match); err != nil {
-			return
+			return errors.WrapWithCode(err, errors.ErrCodeExecute, fmt.Sprintf("执行挂载失败: %s", err))
 		}
 	}
 	return
@@ -102,21 +105,22 @@ func matchFields(scope string, ident string, funcParams bool) (fields []MatchStr
 	return
 }
 
+// ExecFields function    执行字段挂载.
 func ExecFields(cfg Option, fields []MatchStruct) (err error) {
 	if err = utils.FixFilepathByProjectDir(&cfg.Path); err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeExecute, fmt.Sprintf("修复文件路径失败: %s", err))
 	}
 
 	removeDuplicate(fields)
 
 	pathPkg, err := utils.GetPathModPkg(filepath.Dir(cfg.Path))
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeExecute, fmt.Sprintf("获取路径包失败: %s", err))
 	}
 
 	mounter, err := parser.NewStructMounter(cfg.Path, cfg.Struct)
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeExecute, fmt.Sprintf("创建结构体失败: %s", err))
 	}
 
 	sort.Slice(fields, func(i, j int) bool {
@@ -134,7 +138,7 @@ func ExecFields(cfg Option, fields []MatchStruct) (err error) {
 		}
 
 		if err = mounter.MountTypeField(field.Type, strcase.UpperCamelCase(field.FieldName), field.Package); err != nil {
-			return
+			return errors.WrapWithCode(err, errors.ErrCodeExecute, fmt.Sprintf("挂载字段失败: %s", err))
 		}
 	}
 

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/spelens-gud/gsus/internal/config"
@@ -23,10 +24,10 @@ type ImplOptions struct {
 func Impl(ctx context.Context, opts *ImplOptions) error {
 	// 验证参数
 	if err := validator.ValidateRequired(opts.Interface, "interface name"); err != nil {
-		return err
+		return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("验证接口名称失败: %s", err))
 	}
 	if err := validator.ValidateRequired(opts.Struct, "struct directory"); err != nil {
-		return err
+		return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("验证实现目录失败: %s", err))
 	}
 
 	// 构建生成配置
@@ -39,20 +40,20 @@ func Impl(ctx context.Context, opts *ImplOptions) error {
 
 	// 修正路径
 	if err := utils.FixFilepathByProjectDir(&opts.Struct, &syncConfig.Scope); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeFile, "failed to resolve implement directory")
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析实现目录: %s", err))
 	}
 
 	// 加载模板
 	templatePath := filepath.Join(opts.Struct, ".gsus.impl"+config.TemplateSuffix)
 	temp, _, err := template.InitAndLoad(templatePath, template.DefaultImplTemplate)
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeTemplate, "failed to load implement template")
+		return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("加载实现模板失败: %s", err))
 	}
 	syncConfig.ImplBaseTemplate = temp
 
 	// 同步接口实现
 	if err := syncConfig.SyncInterfaceImpls(); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeGenerate, "failed to sync interface implementations")
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("同步接口实现失败: %s", err))
 	}
 
 	return nil

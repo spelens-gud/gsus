@@ -2,9 +2,10 @@ package parser
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
+
+	"github.com/spelens-gud/gsus/internal/errors"
 )
 
 type CTypes struct {
@@ -21,6 +22,10 @@ func GetConnection(mariadbUser string, mariadbPassword string, mariadbHost strin
 		db, err = sql.Open("mysql", mariadbUser+"@tcp("+mariadbHost+":"+
 			strconv.Itoa(mariadbPort)+")/"+mariadbDatabase+"?&parseTime=True")
 	}
+
+	if err != nil {
+		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("无法打开数据库连接: %s", err))
+	}
 	return
 }
 
@@ -34,13 +39,13 @@ func GetColumnsFromMysqlTable(db *sql.DB, dbName, table string) (types *[]CTypes
 
 	if err != nil {
 		fmt.Println("Error selecting from db: " + err.Error())
-		return nil, err
+		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("无法从数据库中获取列数据: %s", err))
 	}
 	if rows != nil {
 		// nolint
 		defer rows.Close()
 	} else {
-		return nil, errors.New("no results returned for table")
+		return nil, errors.New(errors.ErrCodeDatabase, "表未返回任何结果")
 	}
 
 	for rows.Next() {

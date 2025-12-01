@@ -16,7 +16,7 @@ var defaultRouterTemplate = template.Must(template.New("svc").Parse(template2.De
 
 func GenApiRouterGroups(apiGroups []parser.ApiGroup, baseDir string, opts ...func(options *parser.GenOptions)) (err error) {
 	if len(apiGroups) == 0 {
-		return
+		return nil
 	}
 
 	o := &parser.GenOptions{
@@ -31,7 +31,6 @@ func GenApiRouterGroups(apiGroups []parser.ApiGroup, baseDir string, opts ...fun
 
 	// 所有接口定义
 	for i := range apiGroups {
-		i := i
 		wg.Go(func() error {
 			_ = os.MkdirAll(filepath.Dir(filepath.Join(baseDir, apiGroups[i].Filepath)), 0775)
 			return o.WriteApiFiles(baseDir, &apiGroups[i])

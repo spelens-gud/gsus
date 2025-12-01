@@ -1,10 +1,12 @@
 package runner
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/generator"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
@@ -22,7 +24,7 @@ func RunAutoTemplate(opts *TemplateOptions) {
 	config.ExecuteWithConfig(func(cfg config.Option) (err error) {
 		cfg, err = config.Get()
 		if err != nil {
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("获取配置文件错误: %s", err))
 		}
 
 		if len(cfg.Templates.ModelPath) == 0 {
@@ -30,20 +32,20 @@ func RunAutoTemplate(opts *TemplateOptions) {
 		}
 
 		if err = utils.FixFilepathByProjectDir(&cfg.Templates.ModelPath); err != nil {
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("按项目目录修复文件路径: %s", err))
 		}
 
 		models := opts.Models
 		if len(models) == 0 && opts.GenAll {
 			models, err = collectModelsFromPath(cfg.Templates.ModelPath)
 			if err != nil {
-				return err
+				return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析模型路径: %s", err))
 			}
 		}
 
 		for _, model := range models {
 			if err = processModel(model, cfg, opts); err != nil {
-				return err
+				return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成模板代码失败: %s", err))
 			}
 		}
 		return nil
@@ -54,7 +56,7 @@ func collectModelsFromPath(modelPath string) ([]string, error) {
 	models := make([]string, 0)
 	info, err := os.ReadDir(modelPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法读取模型目录: %s", err))
 	}
 
 	for _, i := range info {

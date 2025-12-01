@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/spelens-gud/gsus/internal/errors"
 )
 
 var (
@@ -16,14 +19,11 @@ var (
 	modFilepath *string
 )
 
-// FixFilepathByProjectDir 将相对路径转换为基于项目根目录的绝对路径
-// 参数 fp 是一个或多个字符串指针，指向需要修正的路径
-// 如果路径已经是绝对路径，则跳过处理；否则将其与项目根目录拼接
-// 返回值 err 表示处理过程中可能出现的错误.
+// FixFilepathByProjectDir function    将相对路径转换为基于项目根目录的绝对路径.
 func FixFilepathByProjectDir(fp ...*string) (err error) {
 	dir, err := GetProjectDir()
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("获取项目目录失败: %s", err))
 	}
 	for _, p := range fp {
 		if filepath.IsAbs(*p) {
@@ -34,35 +34,41 @@ func FixFilepathByProjectDir(fp ...*string) (err error) {
 	return
 }
 
+// GetProjectDir function    获取项目根目录.
 func GetProjectDir() (path string, err error) {
 	ret, err := GetModFilepath()
 	if err != nil {
-		return
+		return "", errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("获取 go.mod 路径失败: %s", err))
 	}
 	path = filepath.Dir(ret)
 	return
 }
 
+// GetModFilepath function    获取 go.mod 文件路径.
 func GetModFilepath() (path string, err error) {
 	if modFilepath != nil {
 		return *modFilepath, nil
 	}
 	ret, err := exec.Command("go", "env", "GOMOD").Output()
 	if err != nil {
-		return
+		return "", errors.WrapWithCode(err, errors.ErrCodeConfig, "执行 go env GOMOD 失败")
 	}
 	path = strings.TrimSpace(string(ret))
 	modFilepath = &path
 	return
 }
+
+// GetModBase function    获取模块基础路径.
 func GetModBase() (path string, err error) {
 	ret, err := exec.Command("go", "list", "-m").Output()
 	if err != nil {
-		return
+		return "", errors.WrapWithCode(err, errors.ErrCodeConfig, "执行 go list -m 失败")
 	}
 	path = strings.TrimSpace(string(ret))
 	return
 }
+
+// GetPathModPkg function    获取路径对应的包名.
 func GetPathModPkg(fp string) (pkg string, err error) {
 	modPkgTmpLock.Lock()
 	defer modPkgTmpLock.Unlock()
@@ -70,11 +76,11 @@ func GetPathModPkg(fp string) (pkg string, err error) {
 		return modPkgTmp[fp], nil
 	}
 	if err = FixFilepathByProjectDir(&fp); err != nil {
-		return
+		return "", errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("修正文件路径失败: %s", err))
 	}
 	ret, err := exec.Command("go", "list", fp).Output()
 	if err != nil {
-		return
+		return "", errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("执行 go list 失败: %s", err))
 	}
 	pkg = strings.TrimSpace(string(ret))
 	modPkgTmp[fp] = pkg

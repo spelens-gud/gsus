@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/spelens-gud/gsus/internal/config"
@@ -22,7 +23,7 @@ type RouterOptions struct {
 func Router(ctx context.Context, opts *RouterOptions) error {
 	// 验证参数
 	if err := validator.ValidateRequired(opts.RouterPath, "router path"); err != nil {
-		return err
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("未能验证路由器路径: %s", err))
 	}
 
 	routerPath := opts.RouterPath
@@ -32,26 +33,26 @@ func Router(ctx context.Context, opts *RouterOptions) error {
 
 	// 修正路径
 	if err := utils.FixFilepathByProjectDir(&routerPath); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeFile, "failed to resolve router path")
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析路由器路径: %s", err))
 	}
 
 	// 搜索服务
 	svc, err := SearchServices("./")
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeParse, "failed to search services")
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("搜索服务失败: %s", err))
 	}
 
 	// 解析 API
 	apiGroups, err := parser.ParseApiFromService(svc)
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeParse, "failed to parse API from service")
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("无法从服务解析API: %s", err))
 	}
 
 	// 加载模板
 	templatePath := filepath.Join(routerPath, ".gsus.router"+config.TemplateSuffix)
 	customTemplate, hash, err := template.InitAndLoad(templatePath, template.DefaultHttpRouterTemplate)
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeTemplate, "failed to load router template")
+		return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("加载路由器模板失败: %s", err))
 	}
 
 	// 生成路由代码
@@ -59,7 +60,7 @@ func Router(ctx context.Context, opts *RouterOptions) error {
 		options.Template = customTemplate
 		options.TemplateHash = hash
 	}); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeGenerate, "failed to generate router code")
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成路由代码失败: %s", err))
 	}
 
 	return nil

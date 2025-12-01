@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/stoewer/go-strcase"
 )
 
@@ -86,7 +87,7 @@ func ParseApiFromService(services []Service) (apiGroups []ApiGroup, err error) {
 		var apiGroup ApiGroup
 		apiGroup, err = parseService(service)
 		if err != nil {
-			return
+			return apiGroups, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析服务 %s 失败", service.ServiceName))
 		}
 		if len(apiGroup.Apis) == 0 {
 			continue
@@ -105,7 +106,7 @@ func parseService(service Service) (apiRouteGroup ApiGroup, err error) {
 	}
 	if !isValidRoute(apiGroup) {
 		err = fmt.Errorf("invalid group %s in %s %s", apiGroup, service.Pkg, service.InterfaceName)
-		return
+		return apiRouteGroup, errors.New(errors.ErrCodeParse, err.Error())
 	}
 	apiGroup = strings.Trim(apiGroup, `"`)
 
@@ -117,7 +118,7 @@ func parseService(service Service) (apiRouteGroup ApiGroup, err error) {
 
 	if !isValidRoute(groupRoute) {
 		err = fmt.Errorf("invalid route %s in %s %s", groupRoute, service.Pkg, service.InterfaceName)
-		return
+		return apiRouteGroup, errors.New(errors.ErrCodeParse, err.Error())
 	}
 
 	// 生成package名
@@ -127,7 +128,7 @@ func parseService(service Service) (apiRouteGroup ApiGroup, err error) {
 	//  http服务
 	httpApis, ok := service.ApiAnnotates["http"]
 	if !ok {
-		return
+		return apiRouteGroup, errors.New(errors.ErrCodeParse, fmt.Sprintf("服务 %s 没有定义http接口", service.ServiceName))
 	}
 
 	// 生成文件名
@@ -187,7 +188,7 @@ func parseHttp(api ApiAnnotateItem, serviceName, groupRoute string) (ginApi *Api
 
 	if !isValidRoute(baseRoute) {
 		err = fmt.Errorf("invalid route %s in %s %s", baseRoute, serviceName, api.Handler)
-		return
+		return ginApi, errors.New(errors.ErrCodeParse, err.Error())
 	}
 
 	baseRoute = strings.Trim(baseRoute, `"`)

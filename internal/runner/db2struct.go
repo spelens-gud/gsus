@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/spelens-gud/gsus/internal/config"
@@ -29,7 +30,7 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 	// 验证数据库配置
 	if err := validateDBConfig(db2structConfig); err != nil {
 		log.Error("数据库配置验证失败: %v", err)
-		return err
+		return errors.New(errors.ErrCodeConfig, fmt.Sprintf("数据库配置验证失败: %s", err))
 	}
 
 	// 设置默认输出路径
@@ -49,7 +50,7 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 
 	// 修正路径
 	if err := utils.FixFilepathByProjectDir(&db2structConfig.Path); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeFile, "failed to resolve output path")
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析输出路径: %s", err))
 	}
 	log.Debug("输出路径: %s", db2structConfig.Path)
 
@@ -59,7 +60,7 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 	// 应用泛型选项
 	if err := applyGenericOptions(&genOpts, db2structConfig.GenericMapTypes, db2structConfig.GenericTemplate); err != nil {
 		log.Error("应用泛型选项失败: %v", err)
-		return err
+		return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("泛型选项应用失败: %s", err))
 	}
 
 	// 构建数据库配置
@@ -69,7 +70,7 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 	if len(opts.Tables) == 0 {
 		log.Info("生成所有表的结构体")
 		if err := generator.GenAllDb2Struct(db2structConfig.Path, dbConfig, genOpts...); err != nil {
-			return errors.WrapWithCode(err, errors.ErrCodeGenerate, "failed to generate all tables")
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("未能生成所有表: %s", err))
 		}
 		log.Info("所有表生成完成")
 		return nil
@@ -97,7 +98,7 @@ func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, t
 	if templatePath != "" {
 		tmpl, _, err := template.Load(templatePath)
 		if err != nil {
-			return errors.WrapWithCode(err, errors.ErrCodeTemplate, "failed to load generic template")
+			return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("加载通用模板失败: %s", err))
 		}
 		if tmpl != nil {
 			*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {

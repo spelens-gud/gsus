@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/spelens-gud/gsus/internal/config"
@@ -28,26 +29,26 @@ func Client(ctx context.Context, opts *ClientOptions) error {
 	// 修正路径
 	clientPath := opts.ServicePath
 	if err := utils.FixFilepathByProjectDir(&clientPath); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeFile, "failed to resolve client path")
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("无法解析客户端路径: %s", err))
 	}
 
 	// 搜索服务
 	svc, err := SearchServices("./")
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeParse, "failed to search services")
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("搜索服务失败: %s", err))
 	}
 
 	// 解析 API
 	apiGroups, err := parser.ParseApiFromService(svc)
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeParse, "failed to parse API from service")
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("无法从服务解析API: %s", err))
 	}
 
 	// 加载模板
 	templatePath := filepath.Join(clientPath, ".gsus.client_api"+config.TemplateSuffix)
 	apiTemplate, _, err := template.InitAndLoad(templatePath, template.DefaultHttpClientApiTemplate)
 	if err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeTemplate, "failed to load client API template")
+		return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("加载客户端API模板失败: %s", err))
 	}
 
 	// 生成客户端代码
@@ -55,7 +56,7 @@ func Client(ctx context.Context, opts *ClientOptions) error {
 		option.ClientsPath = clientPath
 		option.ApiTemplate = apiTemplate
 	}); err != nil {
-		return errors.WrapWithCode(err, errors.ErrCodeGenerate, "failed to generate client code")
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成客户端代码失败: %s", err))
 	}
 
 	return nil

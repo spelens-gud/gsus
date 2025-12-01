@@ -1,13 +1,14 @@
 package utils
 
 import (
-	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/spelens-gud/gsus/internal/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -17,6 +18,7 @@ type IOption interface {
 	Get() (IOption, error)
 }
 
+// Execute function    执行函数并处理错误.
 func Execute(f func() (err error)) {
 	var err error
 
@@ -28,7 +30,7 @@ func Execute(f func() (err error)) {
 		if err != nil {
 			var e *exec.ExitError
 			switch {
-			case errors.As(err, &e):
+			case errors.As(err, e):
 				log.Fatalf("%v: %s", err, e.Stderr)
 			default:
 				log.Fatalf("%+v", err)
@@ -39,17 +41,18 @@ func Execute(f func() (err error)) {
 	err = f()
 }
 
+// ExecFiles function    遍历文件并执行函数.
 func ExecFiles(scope string, f func(path string) (err error)) (err error) {
 	if gofile := os.Getenv(goGenerateEnv); len(gofile) > 0 {
 		gofile, err = filepath.Abs(gofile)
 		if err != nil {
-			return
+			return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("获取文件绝对路径失败: %s", err))
 		}
 		return f(gofile)
 	}
 
 	if err = FixFilepathByProjectDir(&scope); err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("修正文件路径失败: %s", err))
 	}
 
 	// walk files

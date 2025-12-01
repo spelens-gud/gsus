@@ -1,12 +1,13 @@
 package generator
 
 import (
-	"errors"
+	"fmt"
 	"go/ast"
 	"path/filepath"
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
 )
@@ -38,7 +39,7 @@ type Field struct {
 func GenTemplate(cfg TemplateConfig, mainConfig config.Option) (err error) {
 	tableBytes, astFile, err := getTableFile(cfg.ModelName, cfg.ModelPath)
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("获取表文件: %s", err))
 	}
 
 	templateStruct, err := parseTemplates(cfg.ModelName, tableBytes, astFile)
@@ -47,8 +48,7 @@ func GenTemplate(cfg TemplateConfig, mainConfig config.Option) (err error) {
 	}
 
 	if len(templateStruct.ServicePkgPath) == 0 {
-		err = errors.New("service pkg config not found,please check implements config")
-		return
+		return errors.New(errors.ErrCodeTemplate, "服务包配置未找到，请检查实现配置")
 	}
 
 	templateStruct.ServicePkg = filepath.Base(templateStruct.ServicePkgPath)
@@ -107,5 +107,8 @@ func parseTemplates(tableName string, tableBytes []byte, astFile *ast.File) (tmp
 func getTableFile(tableName, modelPath string) (data []byte, astFile *ast.File, err error) {
 	path := filepath.Join(modelPath, tableName+".go")
 	astFile, _, data, err = utils.ParseFileAst(path)
+	if err != nil {
+		return data, astFile, errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("解析文件失败: %s", err))
+	}
 	return
 }

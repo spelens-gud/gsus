@@ -2,7 +2,6 @@ package generator
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -16,6 +15,7 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/spelens-gud/gsus/internal/errors"
 	template2 "github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
@@ -53,9 +53,10 @@ type Config struct {
 	Prefix           string
 }
 
+// SyncInterfaceImpls method    同步接口实现.
 func (cfg Config) SyncInterfaceImpls() (err error) {
 	if len(cfg.SetName) == 0 {
-		return errors.New("invalid impl set name")
+		return errors.New(errors.ErrCodeConfig, "无效的实现集名称")
 	}
 
 	if cfg.ImplBaseTemplate == nil {
@@ -97,10 +98,10 @@ func (cfg Config) SyncInterfaceImpls() (err error) {
 			updated, err = syncer.sync()
 			if err != nil {
 				log.Printf("sync interface [ %s.%s ] err: %v", item.PackageName, item.Name, err)
-				return
+				return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("同步接口实现失败%s", err))
 			}
 			log.Printf("interface [ %s.%s ] sync finished,[ %d ] functions updated", item.PackageName, item.Name, updated)
-			return
+			return nil
 		})
 	}
 	return wg.Wait()
@@ -163,7 +164,7 @@ func (s implsSync) sync() (updated int, err error) {
 	if err = s.walkImplDir(func(fp string) (err error) {
 		astF, _, data, err := utils.ParseFileAst(fp)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "解析文件失败")
 		}
 		interfacePkgName, _ := s.getImportedName(astF)
 		interfaceTypeName := interfacePkgName + "." + s.InterfaceName
@@ -184,7 +185,7 @@ func (s implsSync) sync() (updated int, err error) {
 		s.ImplPackage = astF.Name.Name
 		return
 	}); err != nil {
-		return
+		return updated, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("解析文件失败%s", err))
 	}
 
 	// 未有实现结构体 创建
@@ -192,12 +193,12 @@ func (s implsSync) sync() (updated int, err error) {
 		fp := filepath.Join(s.implDir, "init.go")
 		log.Printf("implement for [ %s.%s ] not found,create in [ %s ]", s.InterfacePackageName, s.InterfaceName, fp)
 		if err = utils.ExecuteTemplateAndWrite(s.implStructTemplate, s, fp); err != nil {
-			return
+			return 0, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成实现结构体文件失败:%s", err))
 		}
 	}
 
 	if s.ifaceAstType.Methods.List == nil {
-		return
+		return updated, nil
 	}
 
 	ifaceFuncMap := s.getInterfaceFuncMap()
@@ -212,46 +213,46 @@ func (s implsSync) sync() (updated int, err error) {
 				updated += update
 				mu.Unlock()
 			}
-			return
+			return nil
 		})
 		return
 	}); err != nil {
-		return
+		return updated, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("同步接口实现失败%s", err))
 	}
 
 	if err = wg.Wait(); err != nil {
-		return
+		return updated, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("同步接口实现失败%s", err))
 	}
 
 	if len(ifaceFuncMap) == 0 {
-		return
+		return updated, nil
 	}
 
 	for name, f := range ifaceFuncMap {
-		name := name
-		f := f
 		wg.Go(func() (err error) {
 			if err = s.appendNewFunc(name, f); err == nil {
 				mu.Lock()
 				updated += 1
 				mu.Unlock()
 			}
-			return
+			return nil
 		})
 	}
-	err = wg.Wait()
-	return
+	if err = wg.Wait(); err != nil {
+		return updated, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("同步接口实现失败%s", err))
+	}
+	return updated, nil
 }
 
 func (s implsSync) updateFileImplements(fp string, ifaceFuncMap map[string]ifaceFunc, mutex *sync.Mutex) (edited int, err error) {
 	bf := bytes.Buffer{}
 	astF, fileSet, data, err := utils.ParseFileAst(fp)
 	if err != nil {
-		return
+		return edited, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析文件失败: %s", err))
 	}
 	implements := s.getImplementFunc(astF)
 	if len(implements) == 0 {
-		return
+		return edited, nil
 	}
 
 	for name, f := range implements {
@@ -268,7 +269,7 @@ func (s implsSync) updateFileImplements(fp string, ifaceFuncMap map[string]iface
 
 		newFunc, err := utils.FormatAst(f.Type, fileSet)
 		if err != nil {
-			return 0, err
+			return 0, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("格式化函数失败: %s", err))
 		}
 
 		if newFunc = strings.TrimPrefix(newFunc, "func"); newFunc == interfaceFunc.string {
@@ -285,13 +286,13 @@ func (s implsSync) updateFileImplements(fp string, ifaceFuncMap map[string]iface
 		edited += 1
 	}
 	if edited == 0 {
-		return
+		return edited, nil
 	}
 	if err = utils.ImportAndWrite(data, fp); err != nil {
 		fmt.Printf("%s", data)
-		return
+		return 0, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("写入文件失败: %s", err))
 	}
-	return
+	return edited, nil
 }
 
 func (s implsSync) appendNewFunc(name string, f ifaceFunc) (err error) {
@@ -304,7 +305,7 @@ func (s implsSync) appendNewFunc(name string, f ifaceFunc) (err error) {
 		funcBody, funcStr, err := s.getFunc(f.FuncType, interfacePkgName, name)
 		if err != nil {
 			log.Printf("get func body error: %v", name)
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("获取函数数失败: %s", err))
 		}
 		bf.Write(data)
 		bf.WriteString("\n\n\n" + funcBody)
@@ -315,16 +316,16 @@ func (s implsSync) appendNewFunc(name string, f ifaceFunc) (err error) {
 		funcBody, funcStr, err := s.getFunc(f.FuncType, s.InterfacePackageName, name)
 		if err != nil {
 			log.Printf("get func body error: %v", name)
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("获取函数数失败: %s", err))
 		}
 		bf.WriteString(funcBody)
 		log.Printf("sync [ %s ] in [ %s ]", funcStr, fp)
 	}
 	if err = utils.ImportAndWrite(bf.Bytes(), fp); err != nil {
 		log.Printf("%v", bf.Bytes())
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("写入文件失败: %s", err))
 	}
-	return
+	return nil
 }
 
 func (s implsSync) getFunc(f *ast.FuncType, interfacePackageName, name string) (ret, funcStr string, err error) {
@@ -334,7 +335,7 @@ func (s implsSync) getFunc(f *ast.FuncType, interfacePackageName, name string) (
 	}, token.NewFileSet())
 
 	if err != nil {
-		return
+		return "", "", errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("格式化函数失败: %s", err))
 	}
 	str = strings.ReplaceAll(str, "\n", "")
 	str = strings.TrimPrefix(str, "func")
@@ -342,7 +343,7 @@ func (s implsSync) getFunc(f *ast.FuncType, interfacePackageName, name string) (
 	ret += "\n\n" + funcStr + ` {
 panic("implement me")
 } `
-	return
+	return ret, funcStr, nil
 }
 
 func copyFieldList(itfPkg string, src *ast.FieldList) *ast.FieldList {
@@ -405,6 +406,7 @@ type Interface struct {
 func matchInterface(scope string, ident string) (fields []Interface) {
 	regexConfig, err := regexp.Compile(`@` + ident + `\((.*?)\)`)
 	if err != nil {
+		log.Printf("编译正则表达式失败: %v", err)
 		return
 	}
 	mu := sync.Mutex{}

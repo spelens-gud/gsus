@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -12,6 +11,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -28,7 +28,7 @@ type StructMounter struct {
 func NewStructMounter(structPath, structName string) (set *StructMounter, err error) {
 	b, err := os.ReadFile(structPath)
 	if err != nil {
-		return
+		return set, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("读取配置文件失败: %s", structPath))
 	}
 	set = &StructMounter{
 		FileSet:    token.NewFileSet(),
@@ -38,23 +38,22 @@ func NewStructMounter(structPath, structName string) (set *StructMounter, err er
 	}
 	set.AstFile, err = parser.ParseFile(set.FileSet, "", set.Data, parser.ParseComments)
 	if err != nil {
-		return
+		return set, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析文件失败: %s", err))
 	}
 
 	obj := set.AstFile.Scope.Lookup(set.StructName)
 	if obj == nil {
-		err = errors.New("struct not found")
-		return
+		return set, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("结构未找到: %s", err))
 	}
 
 	t, ok := obj.Decl.(*ast.TypeSpec)
 	if !ok {
 		err = fmt.Errorf("%s is not type spec", set.StructName)
-		return
+		return set, errors.New(errors.ErrCodeGenerate, err.Error())
 	}
 	if _, ok := t.Type.(*ast.StructType); !ok {
 		err = fmt.Errorf("%s is not struct type", set.StructName)
-		return
+		return set, errors.New(errors.ErrCodeGenerate, err.Error())
 	}
 	set.TypeSpec = t
 	return
@@ -87,8 +86,7 @@ func (sSet *StructMounter) MountTypeField(fieldType, fieldName, pkgPath string) 
 	// check imports and fix import pkg name
 	if len(pkgPath) > 0 {
 		if len(splitIdent) != 2 {
-			err = errors.New("invalid type with import package path")
-			return
+			return errors.New(errors.ErrCodeParse, "invalid type with import package path")
 		}
 		importPkgName, imported := sSet.getImportPkgName(pkgPath)
 		if !imported {
@@ -145,13 +143,13 @@ func (sSet *StructMounter) MountTypeField(fieldType, fieldName, pkgPath string) 
 	log.Printf("mount %s [ %s ] as %s on [ %s.%s ]", pkgPath, fieldType, fieldName, sSet.AstFile.Name.Name, sSet.StructName)
 
 	if err = sSet.insertField(fieldType, fieldName, fields.Fields); err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("挂载字段失败: %s", err))
 	}
 
 	// append new import
 	if len(importAs) > 0 {
 		if err = sSet.importPkg(pkgPath, importAs); err != nil {
-			return
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("导入包: %s", err))
 		}
 	}
 	return
@@ -164,7 +162,7 @@ func (sSet *StructMounter) importPkg(pkgPath, importAs string) (err error) {
 	_ = astutil.AddNamedImport(sSet.FileSet, sSet.AstFile, importAs, pkgPath)
 	r, err := utils.FormatAst(sSet.AstFile, sSet.FileSet)
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("格式化文件失败: %s", err))
 	}
 	return sSet.freshFile([]byte(r))
 }
@@ -174,7 +172,7 @@ func (sSet *StructMounter) freshFile(data []byte) (err error) {
 	sSet.FileSet = token.NewFileSet()
 	if sSet.AstFile, err = parser.ParseFile(sSet.FileSet, "", sSet.Data, parser.ParseComments); err != nil {
 		fmt.Printf("%s", sSet.Data)
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析文件失败: %s", err))
 	}
 	// sSet.object = sSet.astFile.Scope.Lookup(sSet.structName)
 	obj := sSet.AstFile.Scope.Lookup(sSet.StructName)

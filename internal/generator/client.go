@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/parser"
 	template2 "github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
@@ -28,9 +29,10 @@ type clientGroup struct {
 var defaultApiTemplate = template.Must(template.New("api").Parse(template2.DefaultHttpClientApiTemplate))
 var defaultBaseTemplate = template.Must(template.New("base").Parse(template2.DefaultHttpClientBaseTemplate))
 
+// GenClients function    生成 HTTP 客户端代码.
 func GenClients(apiGroups []parser.ApiGroup, opts ...func(*config.GenOption)) (err error) {
 	if len(apiGroups) == 0 {
-		return
+		return errors.WrapWithCode(errors.New(errors.ErrCodeGenerate, "没有可用的 API"), errors.ErrCodeGenerate, "没有可用的 API")
 	}
 
 	o := &config.GenOption{
@@ -94,15 +96,15 @@ func GenClients(apiGroups []parser.ApiGroup, opts ...func(*config.GenOption)) (e
 
 		clientDir := filepath.Join(o.ClientsPath, "client_"+client.GroupName, "client_"+client.GroupName+".go")
 		if err = utils.ExecuteTemplateAndWrite(o.ApiTemplate, &client, clientDir); err != nil {
-			return
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成客户端 API 文件失败:%s", err))
 		}
 	}
 
 	baseClientDir := filepath.Join(o.ClientsPath, "client.go")
 	if _, err = os.Stat(baseClientDir); err != nil {
 		if err = utils.ExecuteTemplateAndWrite(o.BaseTemplate, struct{}{}, baseClientDir); err != nil {
-			return
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成基础客户端文件失败:%s", err))
 		}
 	}
-	return
+	return nil
 }

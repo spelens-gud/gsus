@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/stoewer/go-strcase"
 )
 
@@ -18,10 +19,11 @@ func tLog(f string, arg ...interface{}) {
 	fmt.Printf(f+"\n", arg...)
 }
 
+// ParseAllPath function    递归解析所有路径下的 Go 文件标签.
 func ParseAllPath(file string, opts ...TagOption) (err error) {
 	dir, err := os.ReadDir(file)
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("读取目录失败: %s", err))
 	}
 	for _, f := range dir {
 		if f.IsDir() {
@@ -30,23 +32,24 @@ func ParseAllPath(file string, opts ...TagOption) (err error) {
 			}
 			err = ParseAllPath(file+"/"+f.Name(), opts...)
 			if err != nil {
-				return
+				return errors.Wrap(err, "递归解析目录失败")
 			}
 			continue
 		} else if f.Name()[len(f.Name())-3:] == ".go" {
 			err = ParseTag(file+"/"+f.Name(), opts...)
 			if err != nil {
-				return
+				return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("解析标签失败: %s", err))
 			}
 		}
 	}
 	return
 }
 
+// ParsePath function    解析指定路径下的 Go 文件标签.
 func ParsePath(file string, opts ...TagOption) (err error) {
 	dir, err := os.ReadDir(file)
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("读取目录失败; %s", err))
 	}
 	for _, f := range dir {
 		if f.IsDir() {
@@ -55,7 +58,7 @@ func ParsePath(file string, opts ...TagOption) (err error) {
 		if f.Name()[len(f.Name())-3:] == ".go" {
 			err = ParseTag(file+"/"+f.Name(), opts...)
 			if err != nil {
-				return
+				return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析标签失败: %s", err))
 			}
 		}
 	}
@@ -82,24 +85,29 @@ func (o objs) Swap(i, j int) {
 	o[i], o[j] = o[j], o[i]
 }
 
+// ParseTag function    解析单个文件的标签.
 func ParseTag(file string, opts ...TagOption) (err error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
-		return err
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("读取文件失败: %s", err))
 	}
 	res, edit, err := ParseInput(data, opts...)
 	if err != nil || !edit {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析标签失败: %s", err))
 	}
 	err = os.WriteFile(file, res, os.FileMode(0664))
+	if err != nil {
+		return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("写入文件失败: %s", err))
+	}
 	return
 }
 
+// ParseInput function    解析输入数据的标签.
 func ParseInput(data []byte, opts ...TagOption) (res []byte, edited bool, err error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", data, 0)
 	if err != nil {
-		return
+		return nil, false, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析文件失败: %s", err))
 	}
 	var istp int
 	t := len(data)
@@ -175,6 +183,9 @@ func ParseInput(data []byte, opts ...TagOption) (res []byte, edited bool, err er
 	edited = true
 	data = data[:t+istp]
 	res, err = format.Source(data)
+	if err != nil {
+		return nil, false, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("格式化源代码失败: %s", err))
+	}
 	return
 }
 

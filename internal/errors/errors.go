@@ -22,6 +22,8 @@ const (
 	ErrCodeTemplate ErrorCode = 5000
 	// ErrCodeFile 文件操作错误.
 	ErrCodeFile ErrorCode = 6000
+	// ErrCodeExecute 执行错误.
+	ErrCodeExecute ErrorCode = 7000
 )
 
 // Error struct    项目错误.
@@ -99,6 +101,10 @@ func Is(err error, target error) bool {
 	}
 
 	return errors.Is(err, target)
+}
+
+func As(err error, target any) bool {
+	return errors.As(err, &target)
 }
 
 // HasCode function    判断错误是否包含指定错误码.

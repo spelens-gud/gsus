@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/parser"
 	"github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
@@ -116,26 +117,26 @@ func GenAllDb2Struct(dir string, dbConfig DBConfig, options ...config.DbOption) 
 		dbConfig.Port,
 		dbConfig.DB)
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("连接数据库失败: %s", err))
 	}
 
 	tables, err := getTables(db, dbConfig.DB, "")
 	if err != nil {
-		return
+		return errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表失败: %s", err))
 	}
 
 	for _, table := range tables {
 		var ret []byte
 		ret, err = GenTable(table.Name, dbConfig, options...)
 		if err != nil {
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成表结构失败: %s", err))
 		}
 
 		if err = utils.ImportAndWrite(ret, filepath.Join(dir, strcase.SnakeCase(table.Name)+".go")); err != nil {
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("写入文件失败: %s", err))
 		}
 	}
-	return
+	return nil
 }
 func getTables(db *sql.DB, dbName string, tableName string) (ts []Table, err error) {
 	sqlCommand := `SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?`
@@ -146,18 +147,18 @@ func getTables(db *sql.DB, dbName string, tableName string) (ts []Table, err err
 	}
 	r, err := db.Query(sqlCommand, args...)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
 	}
 	// nolint
 	defer r.Close()
 	for r.Next() {
 		var table Table
 		if err = r.Scan(&table.Name, &table.Comment); err != nil {
-			return
+			return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
 		}
 		ts = append(ts, table)
 	}
-	return
+	return ts, nil
 }
 
 func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data []byte, err error) {
@@ -168,19 +169,19 @@ func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data
 		dbConfig.Port,
 		dbConfig.DB)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("连接数据库失败: %s", err))
 	}
 	// nolint
 	defer db.Close()
 
 	res, err := parser.GetColumnsFromMysqlTable(db, dbConfig.DB, table)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
 	}
 
 	tables, err := getTables(db, dbConfig.DB, table)
 	if err != nil || len(tables) != 1 {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
 	}
 
 	var (
@@ -194,13 +195,13 @@ func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data
 
 	// 结构体tag
 	if data, err = parseTag(table, fieldNameMap, dbConfig, data, opts); err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成表结构失败: %s", err))
 	}
 
 	// 泛型方法
 	genericF, err := parser.NewType(structName, opts.PkgName, opts.GenericOption...)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("生成表结构失败: %s", err))
 	}
 
 	data = append(data, genericF...)
@@ -426,9 +427,9 @@ func parseTag(table string, fieldNameMap map[string]string, dbConfig DBConfig, i
 	}
 	data, _, err = ParseInput(in, pos...)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("格式化源代码失败: %s", err))
 	}
-	return
+	return data, nil
 }
 func GenTagUpdateFuncByTable(table string, fieldNameMap map[string]string, dbConfig DBConfig, opts *config.DbOpt) (gorm TagOption, sql TagOption) {
 	db := initConnect(&dbConfig)

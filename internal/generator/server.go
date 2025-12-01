@@ -2,7 +2,6 @@ package generator
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -14,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/spelens-gud/gsus/internal/config"
+	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/parser"
 )
 
@@ -89,7 +89,7 @@ func (p AnnotateParser) parseMethod(method *ast.Field) (err error) {
 		// parse options
 		newApi.Args, newApi.Options, err = parseKV(match[2])
 		if err != nil {
-			return err
+			return errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析kv失败:%s", err))
 		}
 		apiType := match[1]
 		// check namespace
@@ -117,17 +117,17 @@ func (p AnnotateParser) parseMethod(method *ast.Field) (err error) {
 
 		docOffset = i + 1
 	}
-	return
+	return nil
 }
 
 func GetAllService(file string, opts ...config.HttpOption) (res []parser.Service, err error) {
 	fileData, err := os.ReadFile(file)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("读取文件失败: %s", err))
 	}
 	f, err := goparser.ParseFile(token.NewFileSet(), "", fileData, goparser.ParseComments)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("解析文件失败: %s", err))
 	}
 
 	o := config.HttpOptions(opts).Apply()
@@ -165,13 +165,13 @@ func GetAllService(file string, opts ...config.HttpOption) (res []parser.Service
 				annotate := strings.Split(match[1], ",")
 				serviceName := strings.TrimSpace(annotate[0])
 				if _, dup := svcNameMap[serviceName]; dup {
-					err = errors.New("duplicate service name")
+					err = errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("服务名称重复: %s", err))
 					return nil, err
 				}
 				svcNameMap[serviceName] = struct{}{}
 				apis, err := AnalysisServiceWithFileToken(fileData, sp.Name.String(), serviceName)
 				if err != nil {
-					return nil, err
+					return nil, errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("分析文件令牌失败: %s", err))
 				}
 				svc := parser.Service{
 					InterfaceName: sp.Name.String(),
@@ -182,7 +182,7 @@ func GetAllService(file string, opts ...config.HttpOption) (res []parser.Service
 				if len(annotate) > 1 {
 					_, svc.OtherOptions, err = parseKV(strings.Join(annotate[1:], ","))
 					if err != nil {
-						return nil, err
+						return nil, errors.WrapWithCode(err, errors.ErrCodeParse, fmt.Sprintf("解析kv失败:%s", err))
 					}
 				}
 				res = append(res, svc)
@@ -194,7 +194,7 @@ func GetAllService(file string, opts ...config.HttpOption) (res []parser.Service
 func AnalysisServiceWithFileToken(fileData []byte, serviceName, namespace string) (apiAnnotate map[string]*parser.ApiAnnotate, err error) {
 	f, err := goparser.ParseFile(token.NewFileSet(), "", fileData, goparser.ParseComments)
 	if err != nil {
-		return
+		return nil, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("解析文件失败: %s", err))
 	}
 	aParser := AnnotateParser{
 		m:           make(map[string]*parser.ApiAnnotate),
@@ -246,17 +246,13 @@ func parseKV(raw string) (args []string, resMap map[string]string, err error) {
 			continue
 		}
 		if len(res) != 2 {
-			err = errors.New("invalid options key")
-			return
-
+			return args, resMap, errors.New(errors.ErrCodeParse, fmt.Sprintf("解析kv失败:%s", err))
 		}
 		if len(res[0]) == 0 {
-			err = errors.New("invalid options key")
-			return
+			return args, resMap, errors.New(errors.ErrCodeParse, fmt.Sprintf("解析kv失败:%s", err))
 		}
 		if _, dup := resMap[res[0]]; dup {
-			err = errors.New("duplicate options key")
-			return
+			return args, resMap, errors.New(errors.ErrCodeParse, fmt.Sprintf("解析kv失败:%s", err))
 		}
 		resMap[res[0]] = res[1]
 	}
