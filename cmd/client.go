@@ -5,19 +5,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// clientCmd represents the client command.
+// clientCmd var    HTTP 客户端代码生成命令.
+// 该命令用于根据服务接口定义自动生成 HTTP 客户端代码.
 var clientCmd = &cobra.Command{
 	Use:   "client [service]",
 	Short: "生成 HTTP 客户端代码",
 	Long:  `根据服务定义生成 HTTP 客户端相关代码`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// 调用 runner 执行实际的客户端代码生成逻辑
 		runner.RunAutoClient(&runner.ClientOptions{
 			ServicePath: args[0],
 		})
 	},
 }
 
+// init function    初始化 client 命令.
+// 将 client 命令注册为 http 命令的子命令.
 func init() {
 	httpCmd.AddCommand(clientCmd)
 

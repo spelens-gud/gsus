@@ -1,24 +1,24 @@
 package cmd
 
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
-
 import (
 	"github.com/spelens-gud/gsus/internal/runner"
 	"github.com/spf13/cobra"
 )
 
-// configCmd represents the config command.
+// configCmd var    配置管理命令.
+// 该命令用于管理 gsus 项目的配置文件和配置项.
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "配置管理",
 	Long:  `管理 gsus 项目配置`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// 调用 runner 执行配置管理逻辑
 		runner.RunAutoConfig(&runner.ConfigOptions{})
 	},
 }
 
+// init function    初始化 config 命令.
+// 将 config 命令注册为根命令的子命令.
 func init() {
 	rootCmd.AddCommand(configCmd)
 

@@ -1,3 +1,5 @@
+// Package cmd 提供 gsus 工具的所有命令行命令定义.
+// 本包使用 Cobra 框架构建命令行界面，仅负责命令结构定义和参数绑定，不包含业务逻辑.
 package cmd
 
 import (
@@ -15,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// commandName 命令名称.
 const commandName = "gsus"
 
 // rootCmd represents the base command when called without any subcommands.
@@ -29,6 +32,7 @@ var rootCmd = &cobra.Command{
 - 生成枚举类型代码 (enum)`,
 }
 
+// versionBit var    版本信息的 ASCII 艺术字样式.
 var versionBit = lipgloss.NewStyle().Foreground(charmtone.Zinc).SetString(`
   ___  ____  _  _  ____
  / __)/ ___)/ )( \/ ___)
@@ -36,11 +40,12 @@ var versionBit = lipgloss.NewStyle().Foreground(charmtone.Zinc).SetString(`
  \___/(____/\____/(____/
 `)
 
+// defaultVersionTemplate 默认版本信息模板.
 const defaultVersionTemplate = `{{with .DisplayName}}{{printf "%s " .}}{{end}}{{printf "version %s" .Version}}
 
 `
 
-// Execute function    执行根命令.
+// Execute function    执行根命令.
 func Execute() {
 	// 设置版本模板
 	if term.IsTerminal(os.Stdout.Fd()) {
@@ -63,6 +68,8 @@ func Execute() {
 	}
 }
 
+// init function    初始化根命令.
+// 在此函数中可以定义全局标志和配置.
 func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,

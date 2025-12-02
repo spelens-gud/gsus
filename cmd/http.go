@@ -1,21 +1,20 @@
 package cmd
 
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
-
 import (
 	"github.com/spf13/cobra"
 )
 
-// httpCmd represents the http command.
+// httpCmd var    HTTP 相关代码生成命令.
+// 该命令是一个父命令，包含 client 和 router 两个子命令.
+// 用于生成 HTTP 客户端或路由相关代码.
 var httpCmd = &cobra.Command{
 	Use:   "http",
 	Short: "HTTP 相关代码生成",
 	Long:  `生成 HTTP 客户端或路由相关代码`,
 }
 
+// init function    初始化 http 命令.
+// 将 http 命令注册为根命令的子命令.
 func init() {
 	rootCmd.AddCommand(httpCmd)
 
