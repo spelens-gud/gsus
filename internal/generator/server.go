@@ -25,6 +25,7 @@ var (
 	apiAnnotateRegex = regexp.MustCompile(`@(!?[A-Za-z0-9_.:]+?)\((.+?)\)`)
 )
 
+// AnnotateParser struct 注释解析.
 type AnnotateParser struct {
 	m           map[string]*parser.ApiAnnotate
 	namespace   string

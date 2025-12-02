@@ -12,6 +12,8 @@ type ConfigOptions struct {
 	// 预留扩展字段
 }
 
+// Config function    执行配置管理.
+// 加载并处理项目配置，当前实现为占位符.
 func Config(ctx context.Context, opts *ConfigOptions) error {
 	log := logger.WithPrefix("[config]")
 	log.Info("开始执行 config 代码生成")

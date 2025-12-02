@@ -14,6 +14,7 @@ import (
 
 var defaultRouterTemplate = template.Must(template.New("svc").Parse(template2.DefaultHttpRouterTemplate))
 
+// GenApiRouterGroups function    生成接口路由组代码.
 func GenApiRouterGroups(apiGroups []parser.ApiGroup, baseDir string, opts ...func(options *parser.GenOptions)) (err error) {
 	if len(apiGroups) == 0 {
 		return nil

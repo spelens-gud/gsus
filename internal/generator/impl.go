@@ -24,6 +24,7 @@ import (
 
 var defaultImplTemplate = template.Must(template.New("impl").Parse(template2.DefaultImplTemplate))
 
+// Impl struct 定义接口实现结构体.
 type Impl struct {
 	InterfaceName  string
 	ImplPackage    string
@@ -31,6 +32,7 @@ type Impl struct {
 	ImplStructName string
 }
 
+// implsSync struct    实现同步器：负责将接口定义同步到具体的实现代码中.
 type implsSync struct {
 	ImplStructName       string
 	ImplPackage          string
@@ -45,6 +47,7 @@ type implsSync struct {
 	interfaceFileSet   *token.FileSet
 }
 
+// Config struct    配置结构体.
 type Config struct {
 	ImplBaseTemplate *template.Template
 	SetName          string
@@ -53,7 +56,7 @@ type Config struct {
 	Prefix           string
 }
 
-// SyncInterfaceImpls method    同步接口实现.
+// SyncInterfaceImpls method    同步接口实现.
 func (cfg Config) SyncInterfaceImpls() (err error) {
 	if len(cfg.SetName) == 0 {
 		return errors.New(errors.ErrCodeConfig, "无效的实现集名称")
@@ -107,6 +110,7 @@ func (cfg Config) SyncInterfaceImpls() (err error) {
 	return wg.Wait()
 }
 
+// walkImplDir method    遍历实现目录.
 func (s implsSync) walkImplDir(f func(fp string) (err error)) (err error) {
 	return filepath.WalkDir(s.implDir, func(fp string, d fs.DirEntry, _ error) (err error) {
 		if d.IsDir() && fp != s.implDir {
@@ -119,7 +123,7 @@ func (s implsSync) walkImplDir(f func(fp string) (err error)) (err error) {
 	})
 }
 
-// 获取结构体已实现的方法
+// getInterfaceFuncMap method    获取接口方法映射.
 func (s implsSync) getImplementFunc(astF *ast.File) map[string]*ast.FuncDecl {
 	res := make(map[string]*ast.FuncDecl)
 	for _, decl := range astF.Decls {
@@ -140,6 +144,7 @@ func (s implsSync) getImplementFunc(astF *ast.File) map[string]*ast.FuncDecl {
 	return res
 }
 
+// getImportedName method    获取接口导入包名.
 func (s implsSync) getImportedName(astF *ast.File) (string, bool) {
 	interfacePkgName := s.InterfacePackageName
 	imported := false
@@ -156,6 +161,7 @@ func (s implsSync) getImportedName(astF *ast.File) (string, bool) {
 	return interfacePkgName, imported
 }
 
+// sync method    同步接口实现.
 func (s implsSync) sync() (updated int, err error) {
 	_ = os.MkdirAll(s.implDir, 0775)
 
@@ -244,6 +250,7 @@ func (s implsSync) sync() (updated int, err error) {
 	return updated, nil
 }
 
+// updateFileImplements method    更新文件实现.
 func (s implsSync) updateFileImplements(fp string, ifaceFuncMap map[string]ifaceFunc, mutex *sync.Mutex) (edited int, err error) {
 	bf := bytes.Buffer{}
 	astF, fileSet, data, err := utils.ParseFileAst(fp)
@@ -295,6 +302,7 @@ func (s implsSync) updateFileImplements(fp string, ifaceFuncMap map[string]iface
 	return edited, nil
 }
 
+// appendNewFunc method    增加新函数.
 func (s implsSync) appendNewFunc(name string, f ifaceFunc) (err error) {
 	bf := bytes.Buffer{}
 	fp := filepath.Join(s.implDir, strcase.SnakeCase(name)+".go")
@@ -328,6 +336,7 @@ func (s implsSync) appendNewFunc(name string, f ifaceFunc) (err error) {
 	return nil
 }
 
+// getFunc method    获取函数.
 func (s implsSync) getFunc(f *ast.FuncType, interfacePackageName, name string) (ret, funcStr string, err error) {
 	str, err := utils.FormatAst(&ast.FuncType{
 		Params:  copyFieldList(interfacePackageName, f.Params),
@@ -346,6 +355,7 @@ panic("implement me")
 	return ret, funcStr, nil
 }
 
+// copyFieldList method    复制字段列表.
 func copyFieldList(itfPkg string, src *ast.FieldList) *ast.FieldList {
 	if src == nil {
 		return nil
@@ -371,6 +381,7 @@ type ifaceFunc struct {
 	string
 }
 
+// getInterfaceFuncMap method    获取接口函数列表.
 func (s implsSync) getInterfaceFuncMap() map[string]ifaceFunc {
 	ifaceFuncMap := make(map[string]ifaceFunc)
 	bf := new(bytes.Buffer)
@@ -403,6 +414,7 @@ type Interface struct {
 	fileSet   *token.FileSet
 }
 
+// matchInterface method    匹配接口.
 func matchInterface(scope string, ident string) (fields []Interface) {
 	regexConfig, err := regexp.Compile(`@` + ident + `\((.*?)\)`)
 	if err != nil {
@@ -432,6 +444,7 @@ func matchInterface(scope string, ident string) (fields []Interface) {
 	return
 }
 
+// matchAnnotationsByImpl method    匹配接口实现.
 func matchAnnotationsByImpl(re *regexp.Regexp, astF *ast.File) (iface []Interface) {
 	for _, d := range astF.Decls {
 		switch t := d.(type) {

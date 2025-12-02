@@ -11,6 +11,9 @@ import (
 	"github.com/spelens-gud/gsus/internal/utils"
 )
 
+// SearchServices function    搜索服务定义.
+// 在指定范围内扫描所有 Go 文件，查找服务接口定义.
+// 返回找到的所有服务列表和可能的错误.
 func SearchServices(scope string) (services []parser.Service, err error) {
 	mu := sync.Mutex{}
 

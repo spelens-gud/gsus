@@ -15,12 +15,15 @@ import (
 	"github.com/spelens-gud/gsus/internal/utils"
 )
 
+// clientApi struct    HTTP 客户端 API 结构体.
 type clientApi struct {
 	*parser.Api
 	Param      string
 	Return     string
 	MethodSign string
 }
+
+// clientGroup struct    HTTP 客户端组结构体.
 type clientGroup struct {
 	parser.ApiGroup
 	ClientApis []clientApi
@@ -29,7 +32,7 @@ type clientGroup struct {
 var defaultApiTemplate = template.Must(template.New("api").Parse(template2.DefaultHttpClientApiTemplate))
 var defaultBaseTemplate = template.Must(template.New("base").Parse(template2.DefaultHttpClientBaseTemplate))
 
-// GenClients function    生成 HTTP 客户端代码.
+// GenClients function    生成 HTTP 客户端代码.
 func GenClients(apiGroups []parser.ApiGroup, opts ...func(*config.GenOption)) (err error) {
 	if len(apiGroups) == 0 {
 		return errors.WrapWithCode(errors.New(errors.ErrCodeGenerate, "没有可用的 API"), errors.ErrCodeGenerate, "没有可用的 API")

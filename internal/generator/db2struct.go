@@ -81,10 +81,13 @@ var intToWordMap = []string{
 	"nine",
 }
 
+// Table struct    表结构体.
 type Table struct {
 	Name    string
 	Comment string
 }
+
+// DBConfig struct    数据库连接信息.
 type DBConfig struct {
 	User     string
 	Password string
@@ -93,6 +96,8 @@ type DBConfig struct {
 	Port     int
 	cstr     string
 }
+
+// columnDef struct    表字段定义.
 type columnDef struct {
 	ColumnName    string `gorm:"column:COLUMN_NAME"`
 	ColumnType    string `gorm:"column:COLUMN_TYPE"`
@@ -103,13 +108,17 @@ type columnDef struct {
 	IsNullable    string `gorm:"column:IS_NULLABLE"`
 }
 
+// index struct    索引定义.
 type index struct {
 	ColumnName string `gorm:"column:Column_name"`
 	KeyName    string `gorm:"column:Key_name"`
 	NonUnique  int    `gorm:"column:Non_unique"`
 }
+
+// TagFunc    tag处理函数.
 type TagFunc func(structName, fieldName, newTag, oldTag string) (tag string)
 
+// GenAllDb2Struct    生成所有表结构.
 func GenAllDb2Struct(dir string, dbConfig DBConfig, options ...config.DbOption) (err error) {
 	db, err := parser.GetConnection(dbConfig.User,
 		dbConfig.Password,
@@ -138,6 +147,8 @@ func GenAllDb2Struct(dir string, dbConfig DBConfig, options ...config.DbOption) 
 	}
 	return nil
 }
+
+// getTables    获取数据库所有表.
 func getTables(db *sql.DB, dbName string, tableName string) (ts []Table, err error) {
 	sqlCommand := `SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?`
 	args := []interface{}{dbName}
@@ -161,6 +172,7 @@ func getTables(db *sql.DB, dbName string, tableName string) (ts []Table, err err
 	return ts, nil
 }
 
+// GenTable    生成表结构.
 func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data []byte, err error) {
 	// 原db2struct返回的顺序是字段字典序的 已改造成 db2structx
 	db, err := parser.GetConnection(dbConfig.User,
@@ -208,6 +220,7 @@ func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data
 	return
 }
 
+// GenerateStruct    生成结构体.
 func GenerateStruct(columnTypes []parser.CTypes, tableName, structName, pkgName, tableComment string, opts *config.DbOpt) ([]byte, map[string]string) {
 	dbTypes, fieldNameMap := generateMysqlTypes(columnTypes, 0, opts)
 	src := fmt.Sprintf(template.HeadTemplate, tableComment, tableName, pkgName, tableName, ": "+tableComment, structName, dbTypes)
@@ -215,6 +228,7 @@ func GenerateStruct(columnTypes []parser.CTypes, tableName, structName, pkgName,
 	return []byte(src + "\n\n" + tableNameFunc), fieldNameMap
 }
 
+// generateMysqlTypes    生成mysql类型.
 func generateMysqlTypes(objs []parser.CTypes, depth int, opts *config.DbOpt) (string, map[string]string) {
 	structure := "struct {"
 	fieldNameMap := make(map[string]string)
@@ -263,6 +277,7 @@ func generateMysqlTypes(objs []parser.CTypes, depth int, opts *config.DbOpt) (st
 	return structure, fieldNameMap
 }
 
+// mysqlTypeToGoType    将mysql类型转换为go类型.
 func mysqlTypeToGoType(mysqlType string, nullable bool) string {
 	switch mysqlType {
 	case "tinyint", "int", "smallint", "mediumint":
@@ -303,6 +318,7 @@ func mysqlTypeToGoType(mysqlType string, nullable bool) string {
 	return golangInterface
 }
 
+// fmtFieldName    格式化字段名.
 func fmtFieldName(s string) string {
 	// 全大写的话 先转成小写
 	if strings.ToUpper(s) == s {
@@ -321,6 +337,8 @@ func fmtFieldName(s string) string {
 	}
 	return string(runes)
 }
+
+// lintFieldName    字段名格式化.
 func lintFieldName(name string) string {
 	// Fast path for simple cases: "_" and all lowercase.
 	if name == "_" {
@@ -397,6 +415,7 @@ func lintFieldName(name string) string {
 	return string(runes)
 }
 
+// stringifyFirstChar    将字符串首字母转为大写.
 func stringifyFirstChar(str string) string {
 	first := str[:1]
 
@@ -409,6 +428,7 @@ func stringifyFirstChar(str string) string {
 	return intToWordMap[i] + "_" + str[1:]
 }
 
+// parseTag    解析标签.
 func parseTag(table string, fieldNameMap map[string]string, dbConfig DBConfig, in []byte, opts *config.DbOpt) (data []byte, err error) {
 	gto, sto := GenTagUpdateFuncByTable(table, fieldNameMap, dbConfig, opts)
 	pos := []TagOption{gto}
@@ -431,6 +451,8 @@ func parseTag(table string, fieldNameMap map[string]string, dbConfig DBConfig, i
 	}
 	return data, nil
 }
+
+// GenTagUpdateFuncByTable    生成表结构体标签更新函数.
 func GenTagUpdateFuncByTable(table string, fieldNameMap map[string]string, dbConfig DBConfig, opts *config.DbOpt) (gorm TagOption, sql TagOption) {
 	db := initConnect(&dbConfig)
 	m, idm := initTableDesc(table, fieldNameMap, db)
@@ -472,6 +494,7 @@ func GenTagUpdateFuncByTable(table string, fieldNameMap map[string]string, dbCon
 		}
 }
 
+// initConnect    初始化数据库连接.
 func initConnect(dbConfig *DBConfig) *gorm.DB {
 	dbConfig.cstr = fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True",
@@ -495,6 +518,7 @@ func initConnect(dbConfig *DBConfig) *gorm.DB {
 }
 
 // TODO:使用原生SQL.
+// initTableDesc    初始化表结构.
 //
 //nolint:godox
 func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m map[string]columnDef, idm map[string][]index) {
@@ -536,6 +560,7 @@ func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m
 	return
 }
 
+// gormTagFunc    生成gorm标签更新函数.
 func gormTagFunc(fieldNameMap map[string]string, m map[string]columnDef, idm map[string][]index, opts *config.DbOpt) TagFunc {
 	return func(structName, fieldName, newTag, oldTag string) (tag string) {
 		var props []string
@@ -580,6 +605,7 @@ func gormTagFunc(fieldNameMap map[string]string, m map[string]columnDef, idm map
 	}
 }
 
+// sqlTagFunc    生成sql标签更新函数.
 func sqlTagFunc(m map[string]columnDef) func(structName, fieldName, newTag, oldTag string) (tag string) {
 	return func(structName, fieldName, newTag, oldTag string) (tag string) {
 		var props []string
