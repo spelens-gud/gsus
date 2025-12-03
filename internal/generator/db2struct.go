@@ -81,6 +81,35 @@ var intToWordMap = []string{
 	"nine",
 }
 
+// 定义MySQL类型到Go类型的映射.
+var mysqlToGoTypeMap = map[string]string{
+	"tinyint":    golangInt,
+	"int":        golangInt,
+	"smallint":   golangInt,
+	"mediumint":  golangInt,
+	"bigint":     golangInt64,
+	"char":       "string",
+	"enum":       "string",
+	"varchar":    "string",
+	"longtext":   "string",
+	"mediumtext": "string",
+	"text":       "string",
+	"tinytext":   "string",
+	"date":       golangTime,
+	"datetime":   golangTime,
+	"time":       golangTime,
+	"timestamp":  golangTime,
+	"decimal":    golangFloat64,
+	"double":     golangFloat64,
+	"float":      golangFloat32,
+	"binary":     golangByteArray,
+	"blob":       golangByteArray,
+	"longblob":   golangByteArray,
+	"mediumblob": golangByteArray,
+	"varbinary":  golangByteArray,
+	"json":       golangInterface,
+}
+
 // Table struct    表结构体.
 type Table struct {
 	Name    string // 表名
@@ -132,6 +161,7 @@ func GenAllDb2Struct(dir string, dbConfig DBConfig, options ...config.DbOption) 
 }
 
 // getTables    获取数据库所有表.
+// tableName为空的时候获取所有表,否则获取tableName的表.
 func getTables(db *sql.DB, dbName string, tableName string) (ts []Table, err error) {
 	sqlCommand := `SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?`
 	args := []interface{}{dbName}
@@ -169,24 +199,25 @@ func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data
 	// nolint
 	defer db.Close()
 
+	// 获取表结构
 	res, err := parser.GetColumnsFromMysqlTable(db, dbConfig.DB, table)
 	if err != nil {
 		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
 	}
 
+	// 获取表名
 	tables, err := getTables(db, dbConfig.DB, table)
 	if err != nil || len(tables) != 1 {
 		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
 	}
 
 	var (
-		tableName  = tables[0]
-		opts       = config.NewDbOpt(options...)
-		structName = strcase.SnakeCase(table)
+		opts       = config.NewDbOpt(options...) // 配置
+		structName = strcase.SnakeCase(table)    // 默认结构体名称
 	)
 
 	// 基础结构生成
-	data, fieldNameMap := GenerateStruct(*res, table, structName, opts.PkgName, tableName.Comment, opts)
+	data, fieldNameMap := GenerateStruct(*res, table, structName, opts.PkgName, tables[0].Comment, opts)
 
 	// 结构体tag
 	if data, err = parseTag(table, fieldNameMap, dbConfig, data, opts); err != nil {
@@ -200,14 +231,20 @@ func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data
 	}
 
 	data = append(data, genericF...)
-	return
+	return data, nil
 }
 
 // GenerateStruct    生成结构体.
-func GenerateStruct(columnTypes []parser.CTypes, tableName, structName, pkgName, tableComment string, opts *config.DbOpt) ([]byte, map[string]string) {
+func GenerateStruct(columnTypes []parser.CTypes, tableName, structName, pkgName,
+	tableComment string, opts *config.DbOpt) ([]byte, map[string]string) {
+
+	// 生成mysql专用结构体
 	dbTypes, fieldNameMap := generateMysqlTypes(columnTypes, 0, opts)
-	src := fmt.Sprintf(template.HeadTemplate, tableComment, tableName, pkgName, tableName, ": "+tableComment, structName, dbTypes)
-	tableNameFunc := fmt.Sprintf(template.TableFuncTemplate, structName, tableName, utils.GetFuncCallerIdent(structName), structName, structName)
+	src := fmt.Sprintf(template.HeadTemplate, tableComment, tableName, pkgName, tableName,
+		": "+tableComment, structName, dbTypes)
+
+	tableNameFunc := fmt.Sprintf(template.TableFuncTemplate, structName, tableName,
+		utils.GetFuncCallerIdent(structName), structName, structName)
 	return []byte(src + "\n\n" + tableNameFunc), fieldNameMap
 }
 
@@ -227,9 +264,7 @@ func generateMysqlTypes(objs []parser.CTypes, depth int, opts *config.DbOpt) (st
 			primary = ";primary_key"
 		}
 
-		// Get the corresponding go value type for this mysql type
 		var valueType string
-		// If the guregu (https://github.com/guregu/null) CLI option is passed use its types, otherwise use go's sql.NullX
 
 		valueType = mysqlTypeToGoType(mysqlType["value"], nullable)
 		if rp := opts.TypeReplace[valueType]; len(rp) > 0 {
@@ -246,7 +281,6 @@ func generateMysqlTypes(objs []parser.CTypes, depth int, opts *config.DbOpt) (st
 				fieldName,
 				valueType,
 				strings.Join(annotations, " "))
-
 		} else {
 			structure += fmt.Sprintf("\n%s %s",
 				fieldName,
@@ -262,42 +296,25 @@ func generateMysqlTypes(objs []parser.CTypes, depth int, opts *config.DbOpt) (st
 
 // mysqlTypeToGoType    将mysql类型转换为go类型.
 func mysqlTypeToGoType(mysqlType string, nullable bool) string {
-	switch mysqlType {
-	case "tinyint", "int", "smallint", "mediumint":
-		if nullable {
+	// 处理可空类型
+	if nullable {
+		switch mysqlType {
+		case "tinyint", "int", "smallint", "mediumint", "bigint":
 			return sqlNullInt
-		}
-		return golangInt
-	case "json":
-		return golangInterface
-	case "bigint":
-		if nullable {
-			return sqlNullInt
-		}
-		return golangInt64
-	case "char", "enum", "varchar", "longtext", "mediumtext", "text", "tinytext":
-		if nullable {
+		case "char", "enum", "varchar", "longtext", "mediumtext", "text", "tinytext":
 			return sqlNullString
-		}
-		return "string"
-	case "date", "datetime", "time", "timestamp":
-		if nullable {
+		case "date", "datetime", "time", "timestamp":
 			return sqlNullTime
-		}
-		return golangTime
-	case "decimal", "double":
-		if nullable {
+		case "decimal", "double", "float":
 			return sqlNullFloat
 		}
-		return golangFloat64
-	case "float":
-		if nullable {
-			return sqlNullFloat
-		}
-		return golangFloat32
-	case "binary", "blob", "longblob", "mediumblob", "varbinary":
-		return golangByteArray
 	}
+
+	// 查找映射表
+	if goType, exists := mysqlToGoTypeMap[mysqlType]; exists {
+		return goType
+	}
+
 	return golangInterface
 }
 
@@ -323,77 +340,111 @@ func fmtFieldName(s string) string {
 
 // lintFieldName    字段名格式化.
 func lintFieldName(name string) string {
-	// Fast path for simple cases: "_" and all lowercase.
-	if name == "_" {
+	if isSimpleCase(name) {
 		return name
 	}
 
-	for len(name) > 0 && name[0] == '_' {
-		name = name[1:]
+	// 移除开头的下划线
+	name = removeLeadingUnderscores(name)
+
+	// 检查是否全小写
+	if isAllLowerCase(name) {
+		return processAllLowerCase(name)
 	}
 
-	allLower := true
-	for _, r := range name {
-		if !unicode.IsLower(r) {
-			allLower = false
-			break
-		}
-	}
-	if allLower {
-		runes := []rune(name)
-		if u := strings.ToUpper(name); commonInitialisms[u] {
-			copy(runes[0:], []rune(u))
-		} else {
-			runes[0] = unicode.ToUpper(runes[0])
-		}
-		return string(runes)
-	}
+	// 处理驼峰命名和下划线混合的情况
+	return processCamelCaseAndUnderscore(name)
+}
 
-	// Split camelCase at any lower->upper transition, and split on underscores.
-	// Check each word for common initialisms.
+// processCamelCaseAndUnderscore    处理驼峰命名和下划线混合的情况.
+func processCamelCaseAndUnderscore(name string) string {
 	runes := []rune(name)
-	w, i := 0, 0 // index of start of word, scan
+	w, i := 0, 0
 	for i+1 <= len(runes) {
-		eow := false // whether we hit the end of a word
+		eow, n := checkEndOfWordCondition(runes, i)
 
-		if i+1 == len(runes) {
-			eow = true
-		} else if runes[i+1] == '_' {
-			// underscore; shift the remainder forward over any run of underscores
-			eow = true
-			n := 1
-			for i+n+1 < len(runes) && runes[i+n+1] == '_' {
-				n++
-			}
-
-			// Leave at most one underscore if the underscore is between two digits
-			if i+n+1 < len(runes) && unicode.IsDigit(runes[i]) && unicode.IsDigit(runes[i+n+1]) {
-				n--
-			}
-
-			copy(runes[i+1:], runes[i+n+1:])
-			runes = runes[:len(runes)-n]
-		} else if unicode.IsLower(runes[i]) && !unicode.IsLower(runes[i+1]) {
-			// lower->non-lower
-			eow = true
-		}
-		i++
 		if !eow {
+			i++
 			continue
 		}
 
-		// [w,i) is a word.
-		word := string(runes[w:i])
-		if u := strings.ToUpper(word); commonInitialisms[u] {
-			// All the common initialisms are ASCII,
-			// so we can replace the bytes exactly.
-			copy(runes[w:], []rune(u))
-
-		} else if strings.ToLower(word) == word {
-			// already all lowercase, and not the first word, so uppercase the first character.
-			runes[w] = unicode.ToUpper(runes[w])
+		if runes[i+1] == '_' {
+			runes = processUnderscoreSequence(runes, i, n)
 		}
-		w = i
+
+		i++
+		w = handleEndOfWord(runes, i, w)
+	}
+	return string(runes)
+}
+
+// checkEndOfWordCondition    检查是否到达单词结尾.
+func checkEndOfWordCondition(runes []rune, i int) (bool, int) {
+	if i+1 == len(runes) {
+		return true, 0
+	} else if runes[i+1] == '_' {
+		n := 1
+		for i+n+1 < len(runes) && runes[i+n+1] == '_' {
+			n++
+		}
+		return true, n
+	} else if unicode.IsLower(runes[i]) && !unicode.IsLower(runes[i+1]) {
+		return true, 0
+	}
+	return false, 0
+}
+
+// processUnderscoreSequence    处理下划线序列.
+func processUnderscoreSequence(runes []rune, i, n int) []rune {
+	if i+n+1 < len(runes) && unicode.IsDigit(runes[i]) && unicode.IsDigit(runes[i+n+1]) {
+		n--
+	}
+
+	copy(runes[i+1:], runes[i+n+1:])
+	return runes[:len(runes)-n]
+}
+
+// handleEndOfWord    处理单词结束.
+func handleEndOfWord(runes []rune, i, w int) int {
+	word := string(runes[w:i])
+	if u := strings.ToUpper(word); commonInitialisms[u] {
+		copy(runes[w:], []rune(u))
+	} else if strings.ToLower(word) == word {
+		runes[w] = unicode.ToUpper(runes[w])
+	}
+	return i
+}
+
+// isSimpleCase    检查简单情况.
+func isSimpleCase(name string) bool {
+	return name == "_"
+}
+
+// removeLeadingUnderscores    移除开头的下划线.
+func removeLeadingUnderscores(name string) string {
+	for len(name) > 0 && name[0] == '_' {
+		name = name[1:]
+	}
+	return name
+}
+
+// isAllLowerCase    检查是否全小写.
+func isAllLowerCase(name string) bool {
+	for _, r := range name {
+		if !unicode.IsLower(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// processAllLowerCase    处理全小写情况.
+func processAllLowerCase(name string) string {
+	runes := []rune(name)
+	if u := strings.ToUpper(name); commonInitialisms[u] {
+		copy(runes[0:], []rune(u))
+	} else {
+		runes[0] = unicode.ToUpper(runes[0])
 	}
 	return string(runes)
 }
@@ -412,7 +463,10 @@ func stringifyFirstChar(str string) string {
 }
 
 // parseTag    解析标签.
-func parseTag(table string, fieldNameMap map[string]string, dbConfig DBConfig, in []byte, opts *config.DbOpt) (data []byte, err error) {
+func parseTag(table string, fieldNameMap map[string]string, dbConfig DBConfig,
+	in []byte, opts *config.DbOpt) (data []byte, err error) {
+
+	// 生成标签更新函数
 	gto, sto := GenTagUpdateFuncByTable(table, fieldNameMap, dbConfig, opts)
 	pos := []TagOption{gto}
 	if opts.SqlInfo {
@@ -436,8 +490,12 @@ func parseTag(table string, fieldNameMap map[string]string, dbConfig DBConfig, i
 }
 
 // GenTagUpdateFuncByTable    生成表结构体标签更新函数.
-func GenTagUpdateFuncByTable(table string, fieldNameMap map[string]string, dbConfig DBConfig, opts *config.DbOpt) (gorm TagOption, sql TagOption) {
+func GenTagUpdateFuncByTable(table string, fieldNameMap map[string]string,
+	dbConfig DBConfig, opts *config.DbOpt) (gorm TagOption, sql TagOption) {
+
+	// 初始化数据库连接
 	db := initConnect(&dbConfig)
+	// 获取表结构
 	m, idm := initTableDesc(table, fieldNameMap, db)
 	if opts.CommentOutside {
 		for k, v := range m {
@@ -519,7 +577,8 @@ type columnDef struct {
 }
 
 // initTableDesc    初始化表结构.
-func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m map[string]columnDef, idm map[string][]index) {
+func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m map[string]columnDef,
+	idm map[string][]index) {
 	var columns []columnDef
 	err := db.Table("information_schema.COLUMNS").
 		Where("table_name =  ?", table).Select("*").Find(&columns).Error
@@ -543,7 +602,7 @@ func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m
 	err = db.Raw("show index from `" + table + "`").Find(&indexes).Error
 	if err != nil {
 		if err.Error()[:10] == "Error 1146" {
-			return
+			return m, idm
 		}
 		panic(err)
 	}
@@ -555,51 +614,82 @@ func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m
 		}
 		idm[key] = append(idm[key], index)
 	}
-	return
+	return m, idm
+}
+
+// processPrimaryKey    处理主键属性.
+func processPrimaryKey(t columnDef) []string {
+	if t.ColumnKey == "PRI" {
+		return []string{strings.ToUpper("primary_key")}
+	}
+	return []string{}
+}
+
+// processAutoIncrement    处理自增属性.
+func processAutoIncrement(t columnDef) []string {
+	if strings.Contains(t.Extra, "auto_increment") {
+		return []string{strings.ToUpper("auto_increment")}
+	}
+	return []string{}
+}
+
+// processIndexes    处理索引属性.
+func processIndexes(indexes []index) ([]string, []string) {
+	var (
+		indexList    []string
+		unqIndexList []string
+	)
+	for _, i := range indexes {
+		if i.KeyName != "PRIMARY" {
+			if i.NonUnique == 1 {
+				indexList = append(indexList, i.KeyName)
+			} else {
+				unqIndexList = append(unqIndexList, i.KeyName)
+			}
+		}
+	}
+	return indexList, unqIndexList
+}
+
+// buildGormProps    构建gorm属性.
+func buildGormProps(opts *config.DbOpt, fieldNameMap map[string]string, fieldName string,
+	t columnDef, indexes []index) []string {
+	var props []string
+
+	if opts.GormAnnotation {
+		props = append(props, "column:"+fieldNameMap[fieldName])
+	}
+
+	props = append(props, processPrimaryKey(t)...)
+	props = append(props, processAutoIncrement(t)...)
+	props = append(props, "TYPE:"+t.ColumnType)
+
+	if t.IsNullable == "NO" {
+		props = append(props, "NOT NULL")
+	}
+
+	if len(indexes) > 0 {
+		indexList, unqIndexList := processIndexes(indexes)
+		if len(indexList) > 0 {
+			props = append(props, "INDEX:"+strings.Join(indexList, ","))
+		}
+		if len(unqIndexList) > 0 {
+			props = append(props, "UNIQUE_INDEX:"+strings.Join(unqIndexList, ","))
+		}
+	}
+
+	return props
 }
 
 // gormTagFunc    生成gorm标签更新函数.
-func gormTagFunc(fieldNameMap map[string]string, m map[string]columnDef, idm map[string][]index, opts *config.DbOpt) TagFunc {
+func gormTagFunc(fieldNameMap map[string]string, m map[string]columnDef,
+	idm map[string][]index, opts *config.DbOpt) TagFunc {
 	return func(structName, fieldName, newTag, oldTag string) (tag string) {
-		var props []string
-		if opts.GormAnnotation {
-			props = append(props, "column:"+fieldNameMap[fieldName])
-		}
 		t := m[fieldName]
-		if t.ColumnKey == "PRI" {
-			props = append(props, strings.ToUpper("primary_key"))
-		}
-		if strings.Contains(t.Extra, "auto_increment") {
-			props = append(props, strings.ToUpper("auto_increment"))
-		}
-		props = append(props, "TYPE:"+t.ColumnType)
-		if t.IsNullable == "NO" {
-			props = append(props, "NOT NULL")
-		}
+		indexes := idm[fieldName]
 
-		if len(idm[fieldName]) > 0 {
-			var (
-				indexes    []string
-				unqIndexes []string
-			)
-			for _, i := range idm[fieldName] {
-				if i.KeyName != "PRIMARY" {
-					if i.NonUnique == 1 {
-						indexes = append(indexes, i.KeyName)
-					} else {
-						unqIndexes = append(unqIndexes, i.KeyName)
-					}
-				}
-			}
-			if len(indexes) > 0 {
-				props = append(props, "INDEX:"+strings.Join(indexes, ","))
-			}
-			if len(unqIndexes) > 0 {
-				props = append(props, "UNIQUE_INDEX:"+strings.Join(unqIndexes, ","))
-			}
-		}
-		tag = strings.Join(props, ";")
-		return
+		props := buildGormProps(opts, fieldNameMap, fieldName, t, indexes)
+		return strings.Join(props, ";")
 	}
 }
 

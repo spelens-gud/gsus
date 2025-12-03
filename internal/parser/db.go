@@ -32,9 +32,7 @@ func GetConnection(mariadbUser string, mariadbPassword string, mariadbHost strin
 
 // GetColumnsFromMysqlTable function    获取数据库表列信息.
 func GetColumnsFromMysqlTable(db *sql.DB, dbName, table string) (types *[]CTypes, err error) {
-	// Store column as map of maps
 	var columnDataTypes []CTypes
-	// Select columnd data from INFORMATION_SCHEMA
 	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE,COLUMN_COMMENT " +
 		"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
 

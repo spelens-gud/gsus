@@ -35,6 +35,7 @@ func init() {
 	defaultTemplate = template.Must(template.New("").Parse(template2.DefaultModelGenericTemplate))
 }
 
+// NewType function    创建一个类型映射文件.
 func NewType(typeName, pkg string, opts ...func(o *config.TypeOptions)) (res string, err error) {
 	t := T{
 		Type:    typeName,
