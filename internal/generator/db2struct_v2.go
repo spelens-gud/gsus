@@ -167,17 +167,10 @@ func (g *Generator[T]) generateFields(columns []db.Column, indexes []db.Index) (
 		builder.WriteString(fmt.Sprintf("\n%s %s", fieldName, goType))
 
 		// 生成标签
-		var tags []string
 		if g.opts.GormAnnotation {
-			// 使用适配器的BuildGormTag方法
-			tag := g.adapter.BuildGormTag(col, indexes)
-			if tag != "" {
-				tags = append(tags, fmt.Sprintf(`gorm:"%s"`, tag))
+			if tagStr := g.generateFieldTag(col, indexes); tagStr != "" {
+				builder.WriteString(fmt.Sprintf(" `%s`", tagStr))
 			}
-		}
-
-		if len(tags) > 0 {
-			builder.WriteString(fmt.Sprintf(" `%s`", strings.Join(tags, " ")))
 		}
 
 		// 添加注释
@@ -188,6 +181,22 @@ func (g *Generator[T]) generateFields(columns []db.Column, indexes []db.Index) (
 
 	builder.WriteString("\n}")
 	return builder.String(), fieldNameMap
+}
+
+// generateFieldTag method    生成字段标签.
+func (g *Generator[T]) generateFieldTag(col db.Column, indexes []db.Index) string {
+	// 检查是否为 MongoDB 适配器，使用特殊的标签生成方法
+	if mongoAdapter, ok := interface{}(g.adapter).(*db.MongoDBAdapter); ok {
+		return mongoAdapter.BuildMongoDBTags(col, indexes)
+	}
+
+	// 其他数据库使用标准的 GORM 标签
+	tag := g.adapter.BuildGormTag(col, indexes)
+	if tag != "" {
+		return fmt.Sprintf(`gorm:"%s"`, tag)
+	}
+
+	return ""
 }
 
 // buildGormTag method    构建GORM标签.

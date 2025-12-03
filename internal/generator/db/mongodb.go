@@ -9,6 +9,7 @@ import (
 
 	"github.com/spelens-gud/gsus/internal/errors"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -112,23 +113,11 @@ func (a *MongoDBAdapter) GetColumns(ctx context.Context, database, table string)
 		if err := cursor.Decode(&doc); err != nil {
 			continue
 		}
-
-		for key, value := range doc {
-			if _, exists := fieldMap[key]; !exists {
-				column := &Column{
-					Name:         key,
-					Type:         inferMongoType(value),
-					GoType:       mapMongoTypeToGo(value),
-					Nullable:     true, // MongoDB字段默认可空
-					IsPrimaryKey: key == "_id",
-				}
-				fieldMap[key] = column
-			}
-		}
+		a.processDocumentFields(doc, fieldMap)
 	}
 
 	// 转换为切片
-	var columns []Column
+	columns := make([]Column, 0)
 	// _id字段放在最前面
 	if idCol, exists := fieldMap["_id"]; exists {
 		columns = append(columns, *idCol)
@@ -140,6 +129,46 @@ func (a *MongoDBAdapter) GetColumns(ctx context.Context, database, table string)
 	}
 
 	return columns, nil
+}
+
+// processDocumentFields function    处理文档字段.
+func (a *MongoDBAdapter) processDocumentFields(doc bson.M, fieldMap map[string]*Column) {
+	for key, value := range doc {
+		if _, exists := fieldMap[key]; !exists {
+			goType, dbType, isPK := a.extractFieldInfo(key, value)
+
+			column := &Column{
+				Name:         key,
+				Type:         dbType,
+				GoType:       goType,
+				Nullable:     true, // MongoDB字段默认可空
+				IsPrimaryKey: isPK,
+			}
+			fieldMap[key] = column
+		}
+	}
+}
+
+// extractFieldInfo function    提取字段信息.
+func (a *MongoDBAdapter) extractFieldInfo(key string, value interface{}) (goType, dbType string, isPK bool) {
+	goType = mapMongoTypeToGo(value)
+	dbType = inferMongoType(value)
+	isPK = false
+
+	// 特殊处理 _id 字段
+	if key == "_id" {
+		goType = "primitive.ObjectID"
+		dbType = "objectId"
+		isPK = true
+	}
+
+	// 特殊处理时间字段
+	if isMongoDBCreateTimeColumn(key) || isMongoDBUpdateTimeColumn(key) {
+		goType = "time.Time"
+		dbType = "timestamp"
+	}
+
+	return goType, dbType, isPK
 }
 
 // GetIndexes method    获取MongoDB集合的索引.
@@ -196,8 +225,8 @@ func (a *MongoDBAdapter) TypeMapping() map[string]string {
 		"date":      "time.Time",
 		"timestamp": "time.Time",
 		"objectId":  "primitive.ObjectID",
-		"array":     "[]interface{}",
-		"object":    "map[string]interface{}",
+		"array":     "bson.A",
+		"object":    "bson.M",
 		"binary":    "[]byte",
 		"null":      "interface{}",
 	}
@@ -226,12 +255,16 @@ func inferComplexMongoType(value interface{}) string {
 	switch value.(type) {
 	case bson.M:
 		return "object"
-	case []interface{}:
+	case []interface{}, bson.A:
 		return "array"
 	case []byte:
 		return "binary"
 	case nil:
 		return "null"
+	case primitive.ObjectID:
+		return "objectId"
+	case primitive.DateTime:
+		return "timestamp"
 	default:
 		return "interface{}"
 	}
@@ -250,33 +283,21 @@ func inferMongoType(value interface{}) string {
 
 // mapMongoTypeToGo function    映射MongoDB类型到Go类型.
 func mapMongoTypeToGo(value interface{}) string {
-	switch value.(type) {
-	case string:
-		return "string"
-	case int, int32:
-		return "int32"
-	case int64:
-		return "int64"
-	case float32, float64:
-		return "float64"
-	case bool:
-		return "bool"
-	case bson.M:
-		return "map[string]interface{}"
-	case []interface{}:
-		return "[]interface{}"
-	case []byte:
-		return "[]byte"
-	default:
-		return "interface{}"
+	if goType, ok := isBasicType(value); ok {
+		return goType
 	}
+
+	if goType, ok := isComplexType(value); ok {
+		return goType
+	}
+
+	return "interface{}"
 }
 
-// BuildGormTag method    构建MongoDB的GORM标签（MongoDB主要使用bson标签）.
+// BuildGormTag method    构建MongoDB的GORM标签（返回gorm标签内容，不包含gorm:前缀）.
 func (a *MongoDBAdapter) BuildGormTag(col Column, indexes []Index) string {
 	var parts []string
 
-	// MongoDB使用bson标签，但为了兼容性也提供gorm标签
 	// 列名（在MongoDB中是字段名）
 	parts = append(parts, "column:"+col.Name)
 
@@ -299,11 +320,6 @@ func (a *MongoDBAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "type:"+col.Type)
 	}
 
-	// MongoDB通常不强制非空，但可以标记
-	if !col.Nullable {
-		parts = append(parts, "not null")
-	}
-
 	// 注释
 	if col.Comment != "" {
 		parts = append(parts, "comment:"+col.Comment)
@@ -315,7 +331,39 @@ func (a *MongoDBAdapter) BuildGormTag(col Column, indexes []Index) string {
 	return strings.Join(parts, ";")
 }
 
-// buildMongoDBIndexTags function    构建MongoDB索引标签.
+// BuildMongoDBTags method    构建MongoDB的完整标签（包括gorm、bson、json）.
+func (a *MongoDBAdapter) BuildMongoDBTags(col Column, indexes []Index) string {
+	var tags []string
+
+	// GORM 标签
+	gormTag := a.BuildGormTag(col, indexes)
+	if gormTag != "" {
+		tags = append(tags, fmt.Sprintf(`gorm:"%s"`, gormTag))
+	}
+
+	// BSON 标签（MongoDB 原生标签）
+	var bsonParts []string
+	bsonParts = append(bsonParts, col.Name)
+	// _id 字段不应该有 omitempty，因为它是 MongoDB 的必需字段
+	// 其他字段根据 Nullable 决定是否添加 omitempty
+	if col.Nullable && col.Name != "_id" {
+		bsonParts = append(bsonParts, "omitempty")
+	}
+	tags = append(tags, fmt.Sprintf(`bson:"%s"`, strings.Join(bsonParts, ",")))
+
+	// JSON 标签
+	var jsonParts []string
+	jsonParts = append(jsonParts, col.Name)
+	// JSON 标签也添加 omitempty（除了 _id）
+	if col.Nullable && col.Name != "_id" {
+		jsonParts = append(jsonParts, "omitempty")
+	}
+	tags = append(tags, fmt.Sprintf(`json:"%s"`, strings.Join(jsonParts, ",")))
+
+	return strings.Join(tags, " ")
+}
+
+// buildMongoDBIndexTags function    构建MongoDB索引标签.
 func buildMongoDBIndexTags(columnName string, indexes []Index) []string {
 	var (
 		normalIndexes []string
@@ -358,7 +406,7 @@ func buildMongoDBIndexTags(columnName string, indexes []Index) []string {
 	return parts
 }
 
-// isMongoDBCreateTimeColumn function    判断是否为创建时间字段.
+// isMongoDBCreateTimeColumn function    判断是否为创建时间字段.
 func isMongoDBCreateTimeColumn(columnName string) bool {
 	lowerName := strings.ToLower(columnName)
 	return lowerName == "created_at" ||
@@ -371,7 +419,7 @@ func isMongoDBCreateTimeColumn(columnName string) bool {
 		lowerName == "gmtcreate"
 }
 
-// isMongoDBUpdateTimeColumn function    判断是否为更新时间字段.
+// isMongoDBUpdateTimeColumn function    判断是否为更新时间字段.
 func isMongoDBUpdateTimeColumn(columnName string) bool {
 	lowerName := strings.ToLower(columnName)
 	return lowerName == "updated_at" ||
@@ -386,7 +434,7 @@ func isMongoDBUpdateTimeColumn(columnName string) bool {
 		lowerName == "modify_time"
 }
 
-// isMongoDBTimeColumn function    判断是否为时间类型字段.
+// isMongoDBTimeColumn function    判断是否为时间类型字段.
 func isMongoDBTimeColumn(col Column) bool {
 	// 检查Go类型
 	if strings.Contains(col.GoType, "time.Time") ||
@@ -399,4 +447,42 @@ func isMongoDBTimeColumn(col Column) bool {
 	return lowerType == "date" ||
 		lowerType == "timestamp" ||
 		strings.Contains(lowerType, "datetime")
+}
+
+// isBasicType function    检查是否为基本类型.
+func isBasicType(value interface{}) (string, bool) {
+	switch value.(type) {
+	case string:
+		return "string", true
+	case int, int32:
+		return "int32", true
+	case int64:
+		return "int64", true
+	case float32, float64:
+		return "float64", true
+	case bool:
+		return "bool", true
+	default:
+		return "", false
+	}
+}
+
+// isComplexType function    检查是否为复杂类型.
+func isComplexType(value interface{}) (string, bool) {
+	switch value.(type) {
+	case bson.M:
+		return "bson.M", true
+	case bson.A, []interface{}:
+		return "bson.A", true
+	case []byte:
+		return "[]byte", true
+	case bson.D:
+		return "bson.D", true
+	case primitive.ObjectID:
+		return "primitive.ObjectID", true
+	case primitive.DateTime:
+		return "time.Time", true
+	default:
+		return "", false
+	}
 }
