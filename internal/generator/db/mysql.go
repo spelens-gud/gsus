@@ -195,9 +195,24 @@ func (a *MySQLAdapter) GetIndexes(ctx context.Context, database, table string) (
 		}
 	}
 
+	// 按索引名称排序，确保输出顺序稳定
+	var indexNames []string
+	for name := range indexMap {
+		indexNames = append(indexNames, name)
+	}
+
+	// 对索引名称排序
+	for i := 0; i < len(indexNames); i++ {
+		for j := i + 1; j < len(indexNames); j++ {
+			if indexNames[i] > indexNames[j] {
+				indexNames[i], indexNames[j] = indexNames[j], indexNames[i]
+			}
+		}
+	}
+
 	var indexes []Index
-	for _, idx := range indexMap {
-		indexes = append(indexes, *idx)
+	for _, name := range indexNames {
+		indexes = append(indexes, *indexMap[name])
 	}
 
 	return indexes, nil
