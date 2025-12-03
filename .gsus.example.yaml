@@ -1,0 +1,76 @@
+# gsus 配置文件示例
+# 复制此文件为 .gsus.yaml 并根据实际情况修改
+
+gsus:
+  origin: "github.com/your-org/your-project"
+
+# 数据库转结构体配置
+db2struct:
+  # 数据库类型：mysql, postgresql, sqlite, mongodb
+  type: mysql
+
+  # 数据库连接信息
+  user: root
+  password: 123456
+  host: localhost
+  port: 3306
+  db: mydb
+
+  # 字符集（MySQL）
+  charset: utf8mb4
+
+  # 生成代码输出路径
+  path: ./model
+
+  # 泛型模板路径（可选）
+  genericTemplate: ""
+
+  # 泛型映射类型列表（可选）
+  genericMapTypes: []
+
+  # 自定义类型映射（可选）
+  # 将数据库类型映射为自定义的 Go 类型
+  typeMap: {}
+    # time.Time: int64
+    # float64: decimal.Decimal
+
+# PostgreSQL 配置示例
+# db2struct:
+#   type: postgresql
+#   user: postgres
+#   password: 123456
+#   host: localhost
+#   port: 5432
+#   db: mydb
+#   path: ./model
+
+# SQLite 配置示例
+# db2struct:
+#   type: sqlite
+#   db: ./database.db
+#   path: ./model
+
+# MongoDB 配置示例
+# db2struct:
+#   type: mongodb
+#   user:
+#   password:
+#   host: localhost
+#   port: 27017
+#   db: mydb
+#   path: ./model
+
+# 枚举生成配置
+enum:
+  scope: "./..."
+  path: ./enum
+  template: ""
+
+# 模板配置
+templates:
+  modelPath: ""
+  templates:
+    - name: "example"
+      path: ./generated
+      template: ./templates/example.tmpl
+      overwrite: false

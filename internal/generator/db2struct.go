@@ -132,6 +132,7 @@ type DBConfig struct {
 // TagFunc    tag处理函数.
 type TagFunc func(structName, fieldName, newTag, oldTag string) (tag string)
 
+// Deprecated: This package is deprecated and will be removed in future versions.
 // GenAllDb2Struct    生成所有表结构.
 func GenAllDb2Struct(dir string, dbConfig DBConfig, options ...config.DbOption) (err error) {
 	db, err := parser.GetConnection(dbConfig.User,

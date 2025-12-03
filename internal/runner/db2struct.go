@@ -8,18 +8,19 @@ import (
 	"github.com/spelens-gud/gsus/internal/config"
 	"github.com/spelens-gud/gsus/internal/errors"
 	"github.com/spelens-gud/gsus/internal/generator"
+	"github.com/spelens-gud/gsus/internal/generator/db"
 	"github.com/spelens-gud/gsus/internal/logger"
 	"github.com/spelens-gud/gsus/internal/template"
 	"github.com/spelens-gud/gsus/internal/utils"
 	"github.com/stoewer/go-strcase"
 )
 
-// Db2structOptions struct    数据库表转结构体选项.
+// Db2structOptions struct    数据库表转结构体选项.
 type Db2structOptions struct {
 	Tables []string // 指定的表名列表
 }
 
-// Db2struct function    执行数据库表转结构体.
+// Db2struct function    执行数据库表转结构体.
 func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) error {
 	log := logger.WithPrefix("[db2struct]")
 	log.Info("开始执行数据库表转结构体代码生成")
@@ -64,12 +65,12 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 	}
 
 	// 构建数据库配置
-	dbConfig := buildDBConfig(db2structConfig)
+	dbConfig := buildDBConfigV2(db2structConfig)
 
 	// 生成所有表或指定表
 	if len(opts.Tables) == 0 {
 		log.Info("生成所有表的结构体")
-		if err := generator.GenAllDb2Struct(db2structConfig.Path, dbConfig, genOpts...); err != nil {
+		if err := generator.GenAllDb2StructWithAdapter(ctx, db2structConfig.Path, dbConfig, genOpts...); err != nil {
 			return errors.WrapWithCode(err, errors.ErrCodeGenerate, fmt.Sprintf("未能生成所有表: %s", err))
 		}
 		log.Info("所有表生成完成")
@@ -77,17 +78,17 @@ func Db2struct(ctx context.Context, opts *Db2structOptions, cfg config.Option) e
 	}
 
 	log.Info("生成指定表的结构体: %v", opts.Tables)
-	return generateModelsForTables(opts.Tables, db2structConfig.Path, dbConfig, genOpts)
+	return generateModelsForTablesV2(ctx, opts.Tables, db2structConfig.Path, dbConfig, genOpts)
 }
 
-// applyTypeReplacements function    应用类型替换.
+// applyTypeReplacements function    应用类型替换.
 func applyTypeReplacements(genOpts *[]config.DbOption, typeMap map[string]string) {
 	for k, v := range typeMap {
 		*genOpts = append(*genOpts, config.WithTypeReplace(k, v))
 	}
 }
 
-// applyGenericOptions function    应用泛型选项.
+// applyGenericOptions function    应用泛型选项.
 func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, templatePath string) error {
 	if len(genericMapTypes) > 0 {
 		*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.TypeOptions) {
@@ -110,43 +111,62 @@ func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, t
 	return nil
 }
 
-// buildDBConfig function    构建数据库配置.
-func buildDBConfig(cfg config.Db2struct) generator.DBConfig {
-	return generator.DBConfig{
+// buildDBConfigV2 function    构建数据库配置(新版本).
+func buildDBConfigV2(cfg config.Db2struct) *db.Config {
+	// 设置默认数据库类型
+	dbType := db.Type(cfg.Type)
+	if dbType == "" {
+		dbType = db.MySQL
+	}
+
+	// 设置默认字符集
+	charset := cfg.Charset
+	if charset == "" {
+		charset = "utf8mb4"
+	}
+
+	return &db.Config{
+		Type:     dbType,
 		User:     cfg.User,
 		Password: cfg.Password,
-		DB:       cfg.Db,
 		Host:     cfg.Host,
 		Port:     cfg.Port,
+		Database: cfg.Db,
+		Charset:  charset,
 	}
 }
 
-// generateModelsForTables function    为指定表生成模型.
-func generateModelsForTables(tables []string, outputPath string, dbConfig generator.DBConfig,
-	genOpts []config.DbOption) error {
+// generateModelsForTablesV2 function    为指定表生成模型(新版本).
+func generateModelsForTablesV2(ctx context.Context, tables []string, outputPath string,
+	dbConfig *db.Config, genOpts []config.DbOption) error {
+	log := logger.WithPrefix("[db2struct]")
+
 	for _, table := range tables {
-		bytes, err := generator.GenTable(table, dbConfig, genOpts...)
+		log.Info("生成表 %s 的结构体", table)
+		bytes, err := generator.GenTableWithAdapter(ctx, table, dbConfig, genOpts...)
 		if err != nil {
-			logger.Error("generate table [%s] failed: %v", table, err)
+			log.Error("生成表 [%s] 失败: %v", table, err)
 			continue
 		}
 
 		filename := strcase.SnakeCase(table) + ".go"
 		filePath := filepath.Join(outputPath, filename)
 		if err = utils.ImportAndWrite(bytes, filePath); err != nil {
-			logger.Error("write file for table [%s] error: %v", table, err)
+			log.Error("写入表 [%s] 文件失败: %v", table, err)
+			continue
 		}
+		log.Info("表 %s 生成完成", table)
 	}
 	return nil
 }
 
-// validateDBConfig function    验证数据库配置.
+// validateDBConfig function    验证数据库配置.
 func validateDBConfig(cfg config.Db2struct) error {
 	// 导入 validator 包
 	return nil // 这里可以添加具体的验证逻辑
 }
 
-// RunAutoDb2Struct function    执行数据库表转结构体（兼容旧接口）.
+// RunAutoDb2Struct function    执行数据库表转结构体（兼容旧接口）.
 func RunAutoDb2Struct(opts *Db2structOptions) {
 	config.ExecuteWithConfig(func(cfg config.Option) error {
 		return Db2struct(context.Background(), opts, cfg)

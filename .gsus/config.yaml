@@ -29,13 +29,14 @@ http:
     failed: 400,500 {object} object{message=string,ok=bool,code=int} "failed"
     produceType: ""
 db2struct:
+  type: mysql
   user: "root"
   password: "123456"
   host: "127.0.0.1"
   port: 3306
   db: "purchase"
   charset: ""
-  path: ./internal/table
+  path: ./example/table
   genericTemplate: model_generic
   genericMapTypes:
   - int
