@@ -200,7 +200,7 @@ func GenTable(table string, dbConfig DBConfig, options ...config.DbOption) (data
 	if err != nil {
 		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("连接数据库失败: %s", err))
 	}
-	// nolint
+	//nolint:errcheck
 	defer db.Close()
 
 	// 获取表结构

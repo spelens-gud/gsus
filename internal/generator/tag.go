@@ -85,7 +85,7 @@ func (o objs) Swap(i, j int) {
 	o[i], o[j] = o[j], o[i]
 }
 
-// ParseTag function    解析单个文件的标签.
+// ParseTag function    解析单个文件的标签.
 func ParseTag(file string, opts ...TagOption) (err error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
@@ -102,7 +102,7 @@ func ParseTag(file string, opts ...TagOption) (err error) {
 	return
 }
 
-// ParseInput function    解析输入数据的标签.
+// ParseInput function    解析输入数据的标签.
 func ParseInput(data []byte, opts ...TagOption) (res []byte, edited bool, err error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", data, 0)

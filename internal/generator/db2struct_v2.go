@@ -38,7 +38,7 @@ func (g *Generator[T]) GenerateAll(ctx context.Context, outputDir string) error 
 	if err := g.adapter.Connect(ctx, g.config); err != nil {
 		return err
 	}
-	// nolint: errcheck
+	//nolint:errcheck
 	defer g.adapter.Close()
 
 	// 获取所有表
@@ -271,6 +271,13 @@ func (g *Generator[T]) processTags(tableName string, fieldNameMap map[string]str
 
 	var tagOptions []TagOption
 
+	// GORM/SQL标签
+	gormTagOpt, sqlTagOpt := g.genTagUpdateFunc(tableName, fieldNameMap, columnMap, indexes)
+	tagOptions = append(tagOptions, gormTagOpt)
+	if g.opts.SqlInfo {
+		tagOptions = append(tagOptions, sqlTagOpt)
+	}
+
 	// JSON标签
 	switch g.opts.Json {
 	case "camel":
@@ -286,6 +293,205 @@ func (g *Generator[T]) processTags(tableName string, fieldNameMap map[string]str
 	}
 
 	return result, nil
+}
+
+// createGormTagFunc method    创建GORM标签函数.
+func (g *Generator[T]) createGormTagFunc(columnMap map[string]db.Column, fieldNameMap map[string]string,
+	indexMap map[string][]db.Index) TagFunc {
+	return func(structName, fieldName, newTag, oldTag string) string {
+		col, ok := columnMap[fieldName]
+		if !ok {
+			return oldTag
+		}
+		return buildGormTagProperties(col, fieldNameMap, indexMap, fieldName, g.opts.GormAnnotation)
+	}
+}
+
+// createSqlTagFunc method    创建SQL标签函数.
+func (g *Generator[T]) createSqlTagFunc(columnMap map[string]db.Column) TagFunc {
+	return func(structName, fieldName, newTag, oldTag string) string {
+		col, ok := columnMap[fieldName]
+		if !ok {
+			return ""
+		}
+		return buildSqlTagProperties(col)
+	}
+}
+
+// createCombinedSqlTagFunc method    创建组合SQL标签函数.
+func (g *Generator[T]) createCombinedSqlTagFunc(sqlTagFunc TagFunc) TagFunc {
+	return func(structName, fieldName, newTag, oldTag string) string {
+		sqlTag := sqlTagFunc(structName, fieldName, newTag, oldTag)
+		if sqlTag == "" {
+			return oldTag
+		}
+		if oldTag == "" {
+			return sqlTag
+		}
+		return strings.Join([]string{oldTag, sqlTag}, ";")
+	}
+}
+
+// buildTagOptions method    构建标签选项.
+func (g *Generator[T]) buildTagOptions(gormTagFunc, sqlTagFunc TagFunc) (TagOption, TagOption) {
+	if g.opts.SqlTag == "sql" {
+		return TagOption{
+				Tag:        g.opts.SqlTag,
+				Type:       TypeSnakeCase,
+				Cover:      true,
+				Edit:       true,
+				AppendFunc: gormTagFunc,
+			}, TagOption{
+				Tag:        "sql",
+				Type:       TypeSnakeCase,
+				Cover:      true,
+				Edit:       true,
+				AppendFunc: g.createCombinedSqlTagFunc(sqlTagFunc),
+			}
+	}
+
+	return TagOption{
+			Tag:        g.opts.SqlTag,
+			Type:       TypeSnakeCase,
+			Cover:      true,
+			Edit:       true,
+			AppendFunc: gormTagFunc,
+		}, TagOption{
+			Tag:        "sql",
+			Type:       TypeSnakeCase,
+			Cover:      true,
+			Edit:       true,
+			AppendFunc: sqlTagFunc,
+		}
+}
+
+// genTagUpdateFunc method    生成标签更新函数.
+func (g *Generator[T]) genTagUpdateFunc(tableName string, fieldNameMap map[string]string,
+	columnMap map[string]db.Column, indexes []db.Index) (gormTag TagOption, sqlTag TagOption) {
+
+	// 构建索引映射
+	indexMap := buildIndexMap(indexes)
+
+	// 处理注释外置选项
+	clearColumnComments(columnMap, g.opts.CommentOutside)
+
+	// 创建标签函数
+	gormTagFunc := g.createGormTagFunc(columnMap, fieldNameMap, indexMap)
+	sqlTagFunc := g.createSqlTagFunc(columnMap)
+
+	// 构建标签选项
+	return g.buildTagOptions(gormTagFunc, sqlTagFunc)
+}
+
+// buildIndexMap function    构建字段到索引的映射关系.
+func buildIndexMap(indexes []db.Index) map[string][]db.Index {
+	indexMap := make(map[string][]db.Index)
+	for _, idx := range indexes {
+		for _, col := range idx.Columns {
+			fieldName := fmtFieldName(stringifyFirstChar(col))
+			indexMap[fieldName] = append(indexMap[fieldName], idx)
+		}
+	}
+	return indexMap
+}
+
+// clearColumnComments function    处理注释外置选项.
+func clearColumnComments(columnMap map[string]db.Column, commentOutside bool) {
+	if commentOutside {
+		for k, v := range columnMap {
+			v.Comment = ""
+			columnMap[k] = v
+		}
+	}
+}
+
+// buildGormTagProperties function    构建GORM标签属性.
+func buildGormTagProperties(col db.Column, fieldNameMap map[string]string, indexMap map[string][]db.Index,
+	fieldName string, gormAnnotation bool) string {
+	var props []string
+
+	if gormAnnotation {
+		props = append(props, "column:"+fieldNameMap[fieldName])
+	}
+
+	if col.IsPrimaryKey {
+		props = append(props, "PRIMARY_KEY")
+	}
+
+	if col.IsAutoIncr {
+		props = append(props, "AUTO_INCREMENT")
+	}
+
+	props = append(props, "TYPE:"+col.Type)
+
+	if !col.Nullable {
+		props = append(props, "NOT NULL")
+	}
+
+	// 处理索引
+	props = append(props, buildIndexProperties(indexMap, fieldName)...)
+
+	return strings.Join(props, ";")
+}
+
+// buildIndexProperties function    构建索引属性.
+func buildIndexProperties(indexMap map[string][]db.Index, fieldName string) []string {
+	idxs, exists := indexMap[fieldName]
+	if !exists {
+		return nil
+	}
+
+	return buildIndexLists(idxs)
+}
+
+// buildIndexLists function    构建索引列表.
+func buildIndexLists(idxs []db.Index) []string {
+	var (
+		props         []string
+		normalIndexes []string
+		uniqueIndexes []string
+	)
+
+	for _, idx := range idxs {
+		if idx.IsPrimary {
+			continue
+		}
+
+		if idx.IsUnique {
+			uniqueIndexes = append(uniqueIndexes, idx.Name)
+		} else {
+			normalIndexes = append(normalIndexes, idx.Name)
+		}
+	}
+
+	if len(normalIndexes) > 0 {
+		props = append(props, "INDEX:"+strings.Join(normalIndexes, ","))
+	}
+
+	if len(uniqueIndexes) > 0 {
+		props = append(props, "UNIQUE_INDEX:"+strings.Join(uniqueIndexes, ","))
+	}
+
+	return props
+}
+
+// buildSqlTagProperties function    构建SQL标签属性.
+func buildSqlTagProperties(col db.Column) string {
+	var props []string
+
+	if col.Comment != "" {
+		props = append(props, "COMMENT:'"+col.Comment+"'")
+	}
+
+	if col.Default != "" {
+		d := "DEFAULT:" + col.Default
+		if col.Extra != "" {
+			d += " " + col.Extra
+		}
+		props = append(props, d)
+	}
+
+	return strings.Join(props, ";")
 }
 
 // GenAllDb2StructWithAdapter function    使用适配器生成所有表结构.
@@ -326,7 +532,7 @@ func GenTableWithAdapter(ctx context.Context, tableName string, dbConfig *db.Con
 	if err := adapter.Connect(ctx, dbConfig); err != nil {
 		return nil, err
 	}
-	// nolint: errcheck
+	//nolint:errcheck
 	defer adapter.Close()
 
 	// 获取表信息
