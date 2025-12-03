@@ -169,7 +169,8 @@ func (g *Generator[T]) generateFields(columns []db.Column, indexes []db.Index) (
 		// 生成标签
 		var tags []string
 		if g.opts.GormAnnotation {
-			tag := g.buildGormTag(col, indexes)
+			// 使用适配器的BuildGormTag方法
+			tag := g.adapter.BuildGormTag(col, indexes)
 			if tag != "" {
 				tags = append(tags, fmt.Sprintf(`gorm:"%s"`, tag))
 			}
@@ -190,6 +191,9 @@ func (g *Generator[T]) generateFields(columns []db.Column, indexes []db.Index) (
 }
 
 // buildGormTag method    构建GORM标签.
+// Deprecated: This package is deprecated and will be removed in future versions.
+//
+//nolint:unused
 func (g *Generator[T]) buildGormTag(col db.Column, indexes []db.Index) string {
 	var parts []string
 
@@ -203,10 +207,10 @@ func (g *Generator[T]) buildGormTag(col db.Column, indexes []db.Index) string {
 		parts = append(parts, "auto_increment")
 	}
 
-	parts = append(parts, "TYPE:"+col.Type)
+	parts = append(parts, "type:"+col.Type)
 
 	if !col.Nullable {
-		parts = append(parts, "NOT NULL")
+		parts = append(parts, "not null")
 	}
 
 	// 处理索引
@@ -217,6 +221,8 @@ func (g *Generator[T]) buildGormTag(col db.Column, indexes []db.Index) string {
 }
 
 // buildIndexTags method    构建索引标签.
+//
+//nolint:unused
 func (g *Generator[T]) buildIndexTags(columnName string, indexes []db.Index) []string {
 	var (
 		normalIndexes []string
@@ -250,10 +256,10 @@ func (g *Generator[T]) buildIndexTags(columnName string, indexes []db.Index) []s
 
 	var parts []string
 	if len(normalIndexes) > 0 {
-		parts = append(parts, "INDEX:"+strings.Join(normalIndexes, ","))
+		parts = append(parts, "index:"+strings.Join(normalIndexes, ","))
 	}
 	if len(uniqueIndexes) > 0 {
-		parts = append(parts, "UNIQUE_INDEX:"+strings.Join(uniqueIndexes, ","))
+		parts = append(parts, "unique_index:"+strings.Join(uniqueIndexes, ","))
 	}
 
 	return parts
@@ -415,17 +421,17 @@ func buildGormTagProperties(col db.Column, fieldNameMap map[string]string, index
 	}
 
 	if col.IsPrimaryKey {
-		props = append(props, "PRIMARY_KEY")
+		props = append(props, "primary_key")
 	}
 
 	if col.IsAutoIncr {
-		props = append(props, "AUTO_INCREMENT")
+		props = append(props, "autoIncrement")
 	}
 
-	props = append(props, "TYPE:"+col.Type)
+	props = append(props, "type:"+col.Type)
 
 	if !col.Nullable {
-		props = append(props, "NOT NULL")
+		props = append(props, "not null")
 	}
 
 	// 处理索引
@@ -465,11 +471,11 @@ func buildIndexLists(idxs []db.Index) []string {
 	}
 
 	if len(normalIndexes) > 0 {
-		props = append(props, "INDEX:"+strings.Join(normalIndexes, ","))
+		props = append(props, "index:"+strings.Join(normalIndexes, ","))
 	}
 
 	if len(uniqueIndexes) > 0 {
-		props = append(props, "UNIQUE_INDEX:"+strings.Join(uniqueIndexes, ","))
+		props = append(props, "unique_index:"+strings.Join(uniqueIndexes, ","))
 	}
 
 	return props
@@ -480,11 +486,11 @@ func buildSqlTagProperties(col db.Column) string {
 	var props []string
 
 	if col.Comment != "" {
-		props = append(props, "COMMENT:'"+col.Comment+"'")
+		props = append(props, "comment:'"+col.Comment+"'")
 	}
 
 	if col.Default != "" {
-		d := "DEFAULT:" + col.Default
+		d := "default:" + col.Default
 		if col.Extra != "" {
 			d += " " + col.Extra
 		}

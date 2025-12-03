@@ -2,7 +2,7 @@
 // 商品表
 //
 //go:generate gsus db2struct products
-package sql
+package mysql
 
 import "database/sql"
 

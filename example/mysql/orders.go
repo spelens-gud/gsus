@@ -2,7 +2,7 @@
 // 订单表
 //
 //go:generate gsus db2struct orders
-package sql
+package mysql
 
 import "database/sql"
 

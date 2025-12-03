@@ -2,21 +2,21 @@
 // 用户表
 //
 //go:generate gsus db2struct users
-package sql
+package mysql
 
 import "database/sql"
 
 // users : 用户表
 type Users struct {
-	ID        int64           `gorm:"column:id;PRIMARY_KEY;AUTO_INCREMENT;TYPE:bigint;NOT NULL"`                                                     // 用户ID
-	Username  string          `gorm:"column:username;TYPE:varchar(50);NOT NULL;INDEX:idx_username"`                                                  // 用户名
-	Email     sql.NullString  `gorm:"column:email;TYPE:varchar(100);INDEX:idx_email;UNIQUE_INDEX:email"`                                             // 邮箱
-	Password  string          `gorm:"column:password;TYPE:varchar(255);NOT NULL"`                                                                    // 密码
-	Age       sql.NullInt64   `gorm:"column:age;TYPE:int"`                                                                                           // 年龄
-	Balance   sql.NullFloat64 `gorm:"column:balance;TYPE:decimal(10,2)" sql:"DEFAULT:0.00"`                                                          // 余额
-	IsActive  sql.NullInt64   `gorm:"column:is_active;TYPE:tinyint(1)" sql:"DEFAULT:1"`                                                              // 是否激活
-	CreatedAt sql.NullTime    `gorm:"column:created_at;TYPE:datetime" sql:"DEFAULT:CURRENT_TIMESTAMP DEFAULT_GENERATED"`                             // 创建时间
-	UpdatedAt sql.NullTime    `gorm:"column:updated_at;TYPE:datetime" sql:"DEFAULT:CURRENT_TIMESTAMP DEFAULT_GENERATED on update CURRENT_TIMESTAMP"` // 更新时间
+	ID        int64           `gorm:"column:id;PRIMARY_KEY;AUTO_INCREMENT;TYPE:bigint;NOT NULL"`                                                       // 用户ID
+	Username  string          `gorm:"column:username;TYPE:varchar(50);NOT NULL;INDEX:idx_username"`                                                    // 用户名
+	Email     sql.NullString  `gorm:"column:email;TYPE:varchar(100);INDEX:idx_email;UNIQUE_INDEX:email"`                                               // 邮箱
+	Password  string          `gorm:"column:password;TYPE:varchar(255);NOT NULL"`                                                                      // 密码
+	Age       sql.NullInt64   `gorm:"column:age;TYPE:int"`                                                                                             // 年龄
+	Balance   sql.NullFloat64 `gorm:"column:balance;TYPE:decimal(10,2)" mysql:"DEFAULT:0.00"`                                                          // 余额
+	IsActive  sql.NullInt64   `gorm:"column:is_active;TYPE:tinyint(1)" mysql:"DEFAULT:1"`                                                              // 是否激活
+	CreatedAt sql.NullTime    `gorm:"column:created_at;TYPE:datetime" mysql:"DEFAULT:CURRENT_TIMESTAMP DEFAULT_GENERATED"`                             // 创建时间
+	UpdatedAt sql.NullTime    `gorm:"column:updated_at;TYPE:datetime" mysql:"DEFAULT:CURRENT_TIMESTAMP DEFAULT_GENERATED on update CURRENT_TIMESTAMP"` // 更新时间
 }
 
 const TableUsers = "users"

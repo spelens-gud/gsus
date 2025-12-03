@@ -5,6 +5,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spelens-gud/gsus/internal/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -269,4 +270,81 @@ func mapMongoTypeToGo(value interface{}) string {
 	default:
 		return "interface{}"
 	}
+}
+
+// BuildGormTag method    构建MongoDB的GORM标签（MongoDB主要使用bson标签）.
+func (a *MongoDBAdapter) BuildGormTag(col Column, indexes []Index) string {
+	var parts []string
+
+	// MongoDB使用bson标签，但为了兼容性也提供gorm标签
+	// 列名（在MongoDB中是字段名）
+	parts = append(parts, "column:"+col.Name)
+
+	// 主键（MongoDB的_id字段）
+	if col.IsPrimaryKey || col.Name == "_id" {
+		parts = append(parts, "primaryKey")
+	}
+
+	// 类型
+	if col.Type != "" {
+		parts = append(parts, "type:"+col.Type)
+	}
+
+	// MongoDB通常不强制非空，但可以标记
+	if !col.Nullable {
+		parts = append(parts, "not null")
+	}
+
+	// 注释
+	if col.Comment != "" {
+		parts = append(parts, "comment:"+col.Comment)
+	}
+
+	// MongoDB的索引处理
+	parts = append(parts, buildMongoDBIndexTags(col.Name, indexes)...)
+
+	return strings.Join(parts, ";")
+}
+
+// buildMongoDBIndexTags function    构建MongoDB索引标签.
+func buildMongoDBIndexTags(columnName string, indexes []Index) []string {
+	var (
+		normalIndexes []string
+		uniqueIndexes []string
+	)
+
+	for _, idx := range indexes {
+		if idx.IsPrimary {
+			continue
+		}
+
+		// 检查索引是否包含当前列
+		hasColumn := false
+		for _, col := range idx.Columns {
+			if col == columnName {
+				hasColumn = true
+				break
+			}
+		}
+
+		if !hasColumn {
+			continue
+		}
+
+		if idx.IsUnique {
+			uniqueIndexes = append(uniqueIndexes, idx.Name)
+		} else {
+			normalIndexes = append(normalIndexes, idx.Name)
+		}
+	}
+
+	var parts []string
+	if len(normalIndexes) > 0 {
+		parts = append(parts, "index:"+strings.Join(normalIndexes, ","))
+	}
+	if len(uniqueIndexes) > 0 {
+		parts = append(parts, "uniqueIndex:"+strings.Join(uniqueIndexes, ","))
+	}
+
+	return parts
 }

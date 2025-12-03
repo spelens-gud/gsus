@@ -23,6 +23,8 @@ type IAdapter interface {
 	GetIndexes(ctx context.Context, database, table string) ([]Index, error)
 	// TypeMapping 获取数据库类型到Go类型的映射.
 	TypeMapping() map[string]string
+	// BuildGormTag 构建GORM标签.
+	BuildGormTag(col Column, indexes []Index) string
 }
 
 // Adapter struct    数据库适配器工厂.

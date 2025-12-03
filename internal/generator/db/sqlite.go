@@ -134,7 +134,7 @@ func (a *SQLiteAdapter) GetColumns(ctx context.Context, database, table string) 
 
 // isAutoIncrement method    检查列是否为自增.
 func (a *SQLiteAdapter) isAutoIncrement(ctx context.Context, table, column string) bool {
-	query := fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'", table)
+	query := fmt.Sprintf("SELECT mysql FROM sqlite_master WHERE type='table' AND name='%s'", table)
 	var createSQL string
 	if err := a.db.QueryRowContext(ctx, query).Scan(&createSQL); err != nil {
 		return false
@@ -292,4 +292,88 @@ func mapSQLiteTypeToGo(sqliteType string, nullable bool, typeMap map[string]stri
 	}
 
 	return "interface{}"
+}
+
+// BuildGormTag method    构建SQLite的GORM标签.
+func (a *SQLiteAdapter) BuildGormTag(col Column, indexes []Index) string {
+	var parts []string
+
+	// 列名
+	parts = append(parts, "column:"+col.Name)
+
+	// 主键
+	if col.IsPrimaryKey {
+		parts = append(parts, "primaryKey")
+	}
+
+	// 自增（SQLite使用INTEGER PRIMARY KEY会自动自增）
+	if col.IsAutoIncr {
+		parts = append(parts, "autoIncrement")
+	}
+
+	// 类型
+	parts = append(parts, "type:"+col.Type)
+
+	// 非空
+	if !col.Nullable {
+		parts = append(parts, "not null")
+	}
+
+	// 默认值
+	if col.Default != "" {
+		parts = append(parts, "default:"+col.Default)
+	}
+
+	// 注释（SQLite不原生支持注释，但GORM可以使用）
+	if col.Comment != "" {
+		parts = append(parts, "comment:"+col.Comment)
+	}
+
+	// 处理索引
+	parts = append(parts, buildSQLiteIndexTags(col.Name, indexes)...)
+
+	return strings.Join(parts, ";")
+}
+
+// buildSQLiteIndexTags function    构建SQLite索引标签.
+func buildSQLiteIndexTags(columnName string, indexes []Index) []string {
+	var (
+		normalIndexes []string
+		uniqueIndexes []string
+	)
+
+	for _, idx := range indexes {
+		if idx.IsPrimary {
+			continue
+		}
+
+		// 检查索引是否包含当前列
+		hasColumn := false
+		for _, col := range idx.Columns {
+			if col == columnName {
+				hasColumn = true
+				break
+			}
+		}
+
+		if !hasColumn {
+			continue
+		}
+
+		if idx.IsUnique {
+			uniqueIndexes = append(uniqueIndexes, idx.Name)
+		} else {
+			normalIndexes = append(normalIndexes, idx.Name)
+		}
+	}
+
+	var parts []string
+	if len(normalIndexes) > 0 {
+		parts = append(parts, "index:"+strings.Join(normalIndexes, ","))
+	}
+	if len(uniqueIndexes) > 0 {
+		parts = append(parts, "uniqueIndex:"+strings.Join(uniqueIndexes, ","))
+	}
+
+	return parts
 }

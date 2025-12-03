@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spelens-gud/gsus/internal/errors"
@@ -254,13 +255,13 @@ func mapMySQLTypeToGo(mysqlType string, nullable bool, typeMap map[string]string
 	if nullable {
 		switch mysqlType {
 		case "tinyint", "int", "smallint", "mediumint", "bigint":
-			return "sql.NullInt64"
+			return "mysql.NullInt64"
 		case "char", "enum", "varchar", "longtext", "mediumtext", "text", "tinytext":
-			return "sql.NullString"
+			return "mysql.NullString"
 		case "date", "datetime", "time", "timestamp":
-			return "sql.NullTime"
+			return "mysql.NullTime"
 		case "decimal", "double", "float":
-			return "sql.NullFloat64"
+			return "mysql.NullFloat64"
 		}
 	}
 
@@ -277,4 +278,88 @@ func getCharset(charset, defaultCharset string) string {
 		return defaultCharset
 	}
 	return charset
+}
+
+// BuildGormTag method    构建MySQL的GORM标签.
+func (a *MySQLAdapter) BuildGormTag(col Column, indexes []Index) string {
+	var parts []string
+
+	// 列名
+	parts = append(parts, "column:"+col.Name)
+
+	// 主键
+	if col.IsPrimaryKey {
+		parts = append(parts, "primaryKey")
+	}
+
+	// 自增
+	if col.IsAutoIncr {
+		parts = append(parts, "autoIncrement")
+	}
+
+	// 类型
+	parts = append(parts, "type:"+col.Type)
+
+	// 非空
+	if !col.Nullable {
+		parts = append(parts, "not null")
+	}
+
+	// 默认值
+	if col.Default != "" {
+		parts = append(parts, "default:"+col.Default)
+	}
+
+	// 注释
+	if col.Comment != "" {
+		parts = append(parts, "comment:"+col.Comment)
+	}
+
+	// 处理索引
+	parts = append(parts, buildMySQLIndexTags(col.Name, indexes)...)
+
+	return strings.Join(parts, ";")
+}
+
+// buildMySQLIndexTags function    构建MySQL索引标签.
+func buildMySQLIndexTags(columnName string, indexes []Index) []string {
+	var (
+		normalIndexes []string
+		uniqueIndexes []string
+	)
+
+	for _, idx := range indexes {
+		if idx.IsPrimary {
+			continue
+		}
+
+		// 检查索引是否包含当前列
+		hasColumn := false
+		for _, col := range idx.Columns {
+			if col == columnName {
+				hasColumn = true
+				break
+			}
+		}
+
+		if !hasColumn {
+			continue
+		}
+
+		if idx.IsUnique {
+			uniqueIndexes = append(uniqueIndexes, idx.Name)
+		} else {
+			normalIndexes = append(normalIndexes, idx.Name)
+		}
+	}
+
+	var parts []string
+	if len(normalIndexes) > 0 {
+		parts = append(parts, "index:"+strings.Join(normalIndexes, ","))
+	}
+	if len(uniqueIndexes) > 0 {
+		parts = append(parts, "uniqueIndex:"+strings.Join(uniqueIndexes, ","))
+	}
+
+	return parts
 }
