@@ -29,14 +29,14 @@ http:
     failed: 400,500 {object} object{message=string,ok=bool,code=int} "failed"
     produceType: ""
 db2struct:
-  type: mongodb
+  type: sqlite
   user:
   password:
   host: "127.0.0.1"
   port: 27017
-  db: "mydb"
+  db: ./example/sqlite/identifier.sqlite
   charset: ""
-  path: ./example/mogo
+  path: ./example/sqlite
   genericTemplate: model_generic
   genericMapTypes:
   - int
