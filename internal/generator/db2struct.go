@@ -1,5 +1,8 @@
 package generator
 
+// Deprecated: This package is deprecated and will be removed in future versions.
+// Please use the new package instead.
+
 import (
 	"database/sql"
 	"fmt"
@@ -368,7 +371,7 @@ func processCamelCaseAndUnderscore(name string) string {
 			continue
 		}
 
-		if runes[i+1] == '_' {
+		if i+1 < len(runes) && runes[i+1] == '_' {
 			runes = processUnderscoreSequence(runes, i, n)
 		}
 

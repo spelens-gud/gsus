@@ -3,6 +3,7 @@ package config
 // Db2struct struct    数据库转结构体配置.
 // 包含数据库连接信息和代码生成相关配置.
 type Db2struct struct {
+	Type            string            `yaml:"type"`            // 数据库类型（mysql/postgresql/sqlite/mongodb）
 	User            string            `yaml:"user"`            // 数据库用户名
 	Password        string            `yaml:"password"`        // 数据库密码
 	Host            string            `yaml:"host"`            // 数据库主机地址

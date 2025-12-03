@@ -1,0 +1,87 @@
+gsus:
+  origin: ""
+impls:
+- name: service
+  scope: service
+  path: internal/svc_impls/{{ .ImplPackage }}/{{ .SnakeIfaceName }}.go
+  structName: Service
+  pkgPrefix: svc
+  template: impl
+- name: dao
+  scope: internal/dao
+  path: internal/dao/dao_impls/{{ .ImplPackage }}/{{ .SnakeIfaceName }}.go
+  structName: DaoImpl
+  pkgPrefix: ""
+  template: impl
+http:
+  scope: service
+  client:
+    baseTemplate: http_client_base
+    apiTemplate: http_client_api
+    path: clients
+  router:
+    template: http_router
+    path: api
+  swagger:
+    path: docs/swagger.json
+    mainApiPath: ./api/router.go
+    success: 200 {object} object{data={{ .Response }},ok=bool}
+    failed: 400,500 {object} object{message=string,ok=bool,code=int} "failed"
+    produceType: ""
+db2struct:
+  user: "root"
+  password: "123456"
+  host: "127.0.0.1"
+  port: 3306
+  db: "purchase"
+  charset: ""
+  path: ./internal/table
+  genericTemplate: model_generic
+  genericMapTypes:
+  - int
+  - string
+  typeMap:
+    interface: string
+autowire:
+  scope: ""
+  path: ./cmd/inject
+enum:
+  scope: ""
+  path: ""
+  template: ""
+mounts:
+- name: config
+  scope: ""
+  path: config/acm.go
+  struct: AcmConfig
+  template: ""
+  passive: false
+- name: service
+  scope: service
+  path: api/service.go
+  struct: Service
+  template: ""
+  passive: false
+templates:
+  modelPath: ""
+  templates:
+  - name: service
+    path: service/{{ .PackageName }}.go
+    template: ""
+    overwrite: false
+  - name: dao
+    path: internal/dao/{{ .PackageName }}.go
+    template: ""
+    overwrite: false
+  - name: service_impl
+    path: internal/svc_impls/svc_{{.PackageName}}_service/{{ .PackageName }}_service.go
+    template: ""
+    overwrite: false
+  - name: dao_impl
+    path: internal/dao/dao_impls/dao_{{.PackageName}}/{{ .PackageName }}.go
+    template: ""
+    overwrite: false
+  - name: model_cast
+    path: internal/table/{{ .PackageName }}_cast.go
+    template: ""
+    overwrite: false
