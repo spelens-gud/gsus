@@ -4,9 +4,9 @@ import (
 	"text/template"
 )
 
-// GenOption struct    代码生成选项.
+// ClientOpt struct    代码生成选项.
 // 用于配置代码生成的路径和模板.
-type GenOption struct {
+type ClientOpt struct {
 	ClientsPath  string             // 客户端代码输出路径
 	ApiTemplate  *template.Template // API 模板
 	BaseTemplate *template.Template // 基础模板
@@ -15,56 +15,14 @@ type GenOption struct {
 // DbOpt struct    数据库转结构体选项.
 // 配置数据库表转 Go 结构体的各种参数.
 type DbOpt struct {
-	TypeReplace    map[string]string // 类型替换映射
-	GormAnnotation bool              // 是否生成 GORM 注解
-	CommentOutside bool              // 注释是否放在字段外部
-	SqlInfo        bool              // 是否包含 SQL 信息
-	Json           string            // JSON 标签格式（camel/snake）
-	SqlTag         string            // SQL 标签名称
-	PkgName        string            // 包名
-	GenericOption  []func(*Options)  // 通用选项函数列表
-}
-
-// DbOption type    数据库选项函数类型.
-type DbOption func(*DbOpt)
-
-// HttpOpt struct    HTTP 代码生成选项.
-// 配置 HTTP 客户端和路由代码生成的参数.
-type HttpOpt struct {
-	Ident string // 服务标识符
-}
-
-// HttpOption type    HTTP 选项函数类型.
-type HttpOption func(*HttpOpt)
-
-// HttpOptions type    HTTP 选项函数列表.
-type HttpOptions []HttpOption
-
-// Options struct    通用生成选项.
-// 用于配置代码生成的通用参数.
-type Options struct {
-	MapTypes []string           // 映射类型列表
-	Template *template.Template // 代码模板
-}
-
-// Apply method    应用 HTTP 选项.
-// 创建默认的 HttpOpt 并应用所有选项函数.
-func (os HttpOptions) Apply() *HttpOpt {
-	op := &HttpOpt{
-		Ident: "service",
-	}
-	for _, o := range os {
-		o(op)
-	}
-	return op
-}
-
-// WithIdent function    设置服务标识符.
-// 返回一个设置 Ident 字段的选项函数.
-func WithIdent(ident string) HttpOption {
-	return func(o *HttpOpt) {
-		o.Ident = ident
-	}
+	TypeReplace    map[string]string    // 类型替换映射
+	GormAnnotation bool                 // 是否生成 GORM 注解
+	CommentOutside bool                 // 注释是否放在字段外部
+	SqlInfo        bool                 // 是否包含 SQL 信息
+	Json           string               // JSON 标签格式（camel/snake）
+	SqlTag         string               // SQL 标签名称
+	PkgName        string               // 包名
+	GenericOption  []func(*TypeOptions) // 通用选项函数列表
 }
 
 // NewDbOpt function    创建数据库选项.
@@ -81,6 +39,9 @@ func NewDbOpt(options ...DbOption) *DbOpt {
 	return o
 }
 
+// DbOption type    数据库选项函数类型.
+type DbOption func(*DbOpt)
+
 // WithGormAnnotation function    启用 GORM 注解.
 // 返回一个启用 GormAnnotation 的选项函数.
 func WithGormAnnotation() DbOption {
@@ -91,7 +52,7 @@ func WithGormAnnotation() DbOption {
 
 // WithGenericOption function    设置通用选项.
 // 返回一个设置 GenericOption 的选项函数.
-func WithGenericOption(opts ...func(*Options)) DbOption {
+func WithGenericOption(opts ...func(*TypeOptions)) DbOption {
 	return func(o *DbOpt) {
 		o.GenericOption = opts
 	}
@@ -151,4 +112,52 @@ func WithSQLInfo() DbOption {
 	return func(o *DbOpt) {
 		o.SqlInfo = true
 	}
+}
+
+// HttpOpt struct    HTTP 代码生成选项.
+// 配置 HTTP 客户端和路由代码生成的参数.
+type HttpOpt struct {
+	Ident string // 服务标识符
+}
+
+// HttpOption type    HTTP 选项函数类型.
+type HttpOption func(*HttpOpt)
+
+// WithIdent function    设置服务标识符.
+// 返回一个设置 Ident 字段的选项函数.
+func WithIdent(ident string) HttpOption {
+	return func(o *HttpOpt) {
+		o.Ident = ident
+	}
+}
+
+// HttpOptions type    HTTP 选项函数列表.
+type HttpOptions []HttpOption
+
+// Apply method    应用 HTTP 选项.
+// 创建默认的 HttpOpt 并应用所有选项函数.
+func (os HttpOptions) Apply() *HttpOpt {
+	op := &HttpOpt{
+		Ident: "service",
+	}
+	for _, o := range os {
+		o(op)
+	}
+	return op
+}
+
+// TypeOptions struct    通用生成选项.
+// 用于配置代码生成的通用参数.
+type TypeOptions struct {
+	MapTypes []string           // 映射类型列表
+	Template *template.Template // 代码模板
+}
+
+// Option struct    全局配置选项.
+// 包含 gsus 工具的所有配置项，从 YAML 配置文件中加载.
+type Option struct {
+	Gsus      Gsus      `yaml:"gsus"`      // gsus 基础配置
+	Db2struct Db2struct `yaml:"db2struct"` // 数据库转结构体配置
+	Enum      Enum      `yaml:"enum"`      // 枚举生成配置
+	Templates Templates `yaml:"templates"` // 模板配置
 }

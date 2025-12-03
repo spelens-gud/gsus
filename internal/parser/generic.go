@@ -35,12 +35,12 @@ func init() {
 	defaultTemplate = template.Must(template.New("").Parse(template2.DefaultModelGenericTemplate))
 }
 
-func NewType(typeName, pkg string, opts ...func(o *config.Options)) (res string, err error) {
+func NewType(typeName, pkg string, opts ...func(o *config.TypeOptions)) (res string, err error) {
 	t := T{
 		Type:    typeName,
 		Package: pkg,
 	}
-	o := &config.Options{
+	o := &config.TypeOptions{
 		MapTypes: []string{"int", "string"},
 		Template: defaultTemplate,
 	}

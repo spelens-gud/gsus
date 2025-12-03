@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	// loadError var    配置加载错误信息.
+	// loadError 配置加载错误信息.
 	loadError error
-	// config var    全局配置信息.
+	// config 全局配置信息.
 	config Option
-	// once var    确保配置只加载一次的同步锁.
+	// once 确保配置只加载一次的同步锁.
 	once sync.Once
 	// configPath 配置文件相对路径.
 	configPath = ".gsus/config.yaml"
@@ -30,15 +30,11 @@ func Get() (Option, error) {
 	once.Do(func() {
 		var content []byte
 		if content, loadError = Load(configPath); loadError != nil {
-			loadError = errors.WrapWithCode(
-				loadError,
-				errors.ErrCodeConfig,
-				"load project gsus config failed, run [ gsus init ] to init project gsus config",
-			)
+			loadError = errors.WrapWithCode(loadError, errors.ErrCodeConfig, "加载项目 gsus 配置失败，请运行 [gsus init] 来初始化项目 gsus 配置")
 			return
 		}
 		if loadError = yaml.Unmarshal(content, &config); loadError != nil {
-			loadError = errors.WrapWithCode(loadError, errors.ErrCodeConfig, "unmarshal gsus config error")
+			loadError = errors.WrapWithCode(loadError, errors.ErrCodeConfig, "反序列化 gsus 配置错误")
 			return
 		}
 	})
@@ -51,12 +47,12 @@ func Get() (Option, error) {
 func Load(relativePath string) (content []byte, err error) {
 	dir, err := utils.GetProjectDir()
 	if err != nil {
-		return nil, errors.WrapWithCode(err, errors.ErrCodeConfig, "failed to get project directory")
+		return nil, errors.WrapWithCode(err, errors.ErrCodeConfig, "获取项目目录失败")
 	}
 	path := filepath.Join(dir, relativePath)
 	content, err = os.ReadFile(path)
 	if err != nil {
-		return nil, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("failed to read config file: %s", path))
+		return nil, errors.WrapWithCode(err, errors.ErrCodeFile, fmt.Sprintf("读取配置文件失败: %s", path))
 	}
 	return content, nil
 }
@@ -67,8 +63,8 @@ func ExecuteWithConfig(fn func(cfg Option) error) {
 	utils.Execute(func() error {
 		cfg, err := Get()
 		if err != nil {
-			logger.Error("failed to load config: %v", err)
-			return err
+			logger.Error("加载配置失败: %v", err)
+			return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("加载配置失败: %s", err))
 		}
 		return fn(cfg)
 	})

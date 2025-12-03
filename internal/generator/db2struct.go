@@ -83,36 +83,18 @@ var intToWordMap = []string{
 
 // Table struct    表结构体.
 type Table struct {
-	Name    string
-	Comment string
+	Name    string // 表名
+	Comment string // 表注释
 }
 
 // DBConfig struct    数据库连接信息.
 type DBConfig struct {
-	User     string
-	Password string
-	DB       string
-	Host     string
-	Port     int
-	cstr     string
-}
-
-// columnDef struct    表字段定义.
-type columnDef struct {
-	ColumnName    string `gorm:"column:COLUMN_NAME"`
-	ColumnType    string `gorm:"column:COLUMN_TYPE"`
-	ColumnKey     string `gorm:"column:COLUMN_KEY"`
-	Extra         string `gorm:"column:EXTRA"`
-	ColumnComment string `gorm:"column:COLUMN_COMMENT"`
-	ColumnDefault string `gorm:"column:COLUMN_DEFAULT"`
-	IsNullable    string `gorm:"column:IS_NULLABLE"`
-}
-
-// index struct    索引定义.
-type index struct {
-	ColumnName string `gorm:"column:Column_name"`
-	KeyName    string `gorm:"column:Key_name"`
-	NonUnique  int    `gorm:"column:Non_unique"`
+	User     string // 数据库用户名
+	Password string // 密码
+	DB       string // 数据库名称
+	Host     string // 数据库主机地址
+	Port     int    // 数据库端口
+	Cstr     string // 数据库连接字符串
 }
 
 // TagFunc    tag处理函数.
@@ -124,7 +106,8 @@ func GenAllDb2Struct(dir string, dbConfig DBConfig, options ...config.DbOption) 
 		dbConfig.Password,
 		dbConfig.Host,
 		dbConfig.Port,
-		dbConfig.DB)
+		dbConfig.DB,
+	)
 	if err != nil {
 		return errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("连接数据库失败: %s", err))
 	}
@@ -158,14 +141,14 @@ func getTables(db *sql.DB, dbName string, tableName string) (ts []Table, err err
 	}
 	r, err := db.Query(sqlCommand, args...)
 	if err != nil {
-		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
+		return nil, err
 	}
 	// nolint
 	defer r.Close()
 	for r.Next() {
 		var table Table
 		if err = r.Scan(&table.Name, &table.Comment); err != nil {
-			return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("获取表结构失败: %s", err))
+			return nil, err
 		}
 		ts = append(ts, table)
 	}
@@ -496,7 +479,7 @@ func GenTagUpdateFuncByTable(table string, fieldNameMap map[string]string, dbCon
 
 // initConnect    初始化数据库连接.
 func initConnect(dbConfig *DBConfig) *gorm.DB {
-	dbConfig.cstr = fmt.Sprintf(
+	dbConfig.Cstr = fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True",
 		dbConfig.User,
 		dbConfig.Password,
@@ -505,7 +488,7 @@ func initConnect(dbConfig *DBConfig) *gorm.DB {
 		dbConfig.DB,
 	)
 	var err error
-	DB, err := gorm.Open(mysql.Open(dbConfig.cstr), &gorm.Config{
+	DB, err := gorm.Open(mysql.Open(dbConfig.Cstr), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // 使用单数表名
 		},
@@ -517,10 +500,25 @@ func initConnect(dbConfig *DBConfig) *gorm.DB {
 	return DB
 }
 
-// TODO:使用原生SQL.
+// index struct    索引定义.
+type index struct {
+	ColumnName string `gorm:"column:Column_name"` // 列名
+	KeyName    string `gorm:"column:Key_name"`    // 索引名称
+	NonUnique  int    `gorm:"column:Non_unique"`  // 是否唯一
+}
+
+// columnDef struct    表字段定义.
+type columnDef struct {
+	ColumnName    string `gorm:"column:COLUMN_NAME"`    // 字段名
+	ColumnType    string `gorm:"column:COLUMN_TYPE"`    // 字段类型
+	ColumnKey     string `gorm:"column:COLUMN_KEY"`     // 是否主键
+	Extra         string `gorm:"column:EXTRA"`          // 额外的信息
+	ColumnComment string `gorm:"column:COLUMN_COMMENT"` // 字段注释
+	ColumnDefault string `gorm:"column:COLUMN_DEFAULT"` // 默认值
+	IsNullable    string `gorm:"column:IS_NULLABLE"`    // 是否可空
+}
+
 // initTableDesc    初始化表结构.
-//
-//nolint:godox
 func initTableDesc(table string, fieldNameMap map[string]string, db *gorm.DB) (m map[string]columnDef, idm map[string][]index) {
 	var columns []columnDef
 	err := db.Table("information_schema.COLUMNS").

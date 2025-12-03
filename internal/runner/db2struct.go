@@ -90,7 +90,7 @@ func applyTypeReplacements(genOpts *[]config.DbOption, typeMap map[string]string
 // applyGenericOptions function    应用泛型选项.
 func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, templatePath string) error {
 	if len(genericMapTypes) > 0 {
-		*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {
+		*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.TypeOptions) {
 			options.MapTypes = genericMapTypes
 		}))
 	}
@@ -101,7 +101,7 @@ func applyGenericOptions(genOpts *[]config.DbOption, genericMapTypes []string, t
 			return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("加载通用模板失败: %s", err))
 		}
 		if tmpl != nil {
-			*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.Options) {
+			*genOpts = append(*genOpts, config.WithGenericOption(func(options *config.TypeOptions) {
 				options.Template = tmpl
 			}))
 		}

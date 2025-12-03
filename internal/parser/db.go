@@ -13,6 +13,7 @@ type CTypes struct {
 	Info map[string]string
 }
 
+// GetConnection function    获取数据库连接.
 func GetConnection(mariadbUser string, mariadbPassword string, mariadbHost string,
 	mariadbPort int, mariadbDatabase string) (db *sql.DB, err error) {
 	if mariadbPassword != "" {
@@ -29,14 +30,15 @@ func GetConnection(mariadbUser string, mariadbPassword string, mariadbHost strin
 	return
 }
 
+// GetColumnsFromMysqlTable function    获取数据库表列信息.
 func GetColumnsFromMysqlTable(db *sql.DB, dbName, table string) (types *[]CTypes, err error) {
 	// Store column as map of maps
 	var columnDataTypes []CTypes
 	// Select columnd data from INFORMATION_SCHEMA
-	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE,COLUMN_COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
+	columnDataTypeQuery := "SELECT COLUMN_NAME, COLUMN_KEY, DATA_TYPE, IS_NULLABLE,COLUMN_COMMENT " +
+		"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND table_name = ?"
 
 	rows, err := db.Query(columnDataTypeQuery, dbName, table)
-
 	if err != nil {
 		fmt.Println("Error selecting from db: " + err.Error())
 		return nil, errors.WrapWithCode(err, errors.ErrCodeDatabase, fmt.Sprintf("无法从数据库中获取列数据: %s", err))

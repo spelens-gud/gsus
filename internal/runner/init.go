@@ -38,7 +38,7 @@ func RunAutoInit(opts *InitOptions) {
 		}
 
 		// 创建 .gsus 目录
-		if err = os.Mkdir(filepath.Join(dir, config.ConfigDir), 0775); err != nil {
+		if err = os.Mkdir(filepath.Join(dir, config.GsusConfigDir), 0775); err != nil {
 			log.Error("创建 .gsus 目录失败")
 			return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("创建 .gsus 目录失败: %s", err))
 		}
@@ -56,13 +56,13 @@ func RunAutoInit(opts *InitOptions) {
 		}
 
 		// 写入默认配置文件
-		if err = os.WriteFile(filepath.Join(dir, config.ConfigFile), bytes, 0664); err != nil {
+		if err = os.WriteFile(filepath.Join(dir, config.GsusConfigFile), bytes, 0664); err != nil {
 			log.Error("写入默认配置文件失败")
 			return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("写入默认配置文件失败: %s", err))
 		}
 
 		// 创建模板目录
-		if err = os.Mkdir(filepath.Join(dir, config.TemplateDir), 0775); err != nil {
+		if err = os.Mkdir(filepath.Join(dir, config.GsusTemplateDir), 0775); err != nil {
 			log.Error("创建模板目录失败")
 			return errors.WrapWithCode(err, errors.ErrCodeConfig, fmt.Sprintf("创建模板目录失败: %s", err))
 		}
@@ -75,7 +75,7 @@ func RunAutoInit(opts *InitOptions) {
 
 func writeTemplates(dir string, contentMap map[string]string) error {
 	for path, content := range contentMap {
-		p := filepath.Join(dir, config.TemplateDir, path+config.TemplateSuffix)
+		p := filepath.Join(dir, config.GsusTemplateDir, path+config.GsusTemplateSuffix)
 		if err := os.WriteFile(p, []byte(content), 0664); err != nil {
 			return errors.WrapWithCode(err, errors.ErrCodeTemplate, fmt.Sprintf("写入模板文件失败: %s", err))
 		}

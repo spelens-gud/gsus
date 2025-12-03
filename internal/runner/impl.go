@@ -51,7 +51,7 @@ func Impl(ctx context.Context, opts *ImplOptions) error {
 	}
 
 	// 加载模板
-	templatePath := filepath.Join(opts.Struct, ".gsus.impl"+config.TemplateSuffix)
+	templatePath := filepath.Join(opts.Struct, ".gsus.impl"+config.GsusTemplateSuffix)
 	temp, _, err := template.InitAndLoad(templatePath, template.DefaultImplTemplate)
 	if err != nil {
 		log.Error("加载实现模板失败")

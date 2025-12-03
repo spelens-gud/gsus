@@ -53,28 +53,32 @@ type ApiAnnotateItem struct {
 	Options map[string]string
 	Doc     []string
 }
+
+// ApiGroup struct    HTTP 接口组结构体.
 type ApiGroup struct {
-	Package     string
-	GroupName   string
-	ServiceName string
-	GroupRoute  string
-	Hash        string
-	Apis        []*Api
-	Options     map[string]string
-	Filepath    string
-	Skip        bool
+	Package     string            // package名
+	GroupName   string            // 组名
+	ServiceName string            // 服务名
+	GroupRoute  string            // 组路由前缀
+	Hash        string            // 组路由hash
+	Apis        []*Api            // HTTP接口
+	Options     map[string]string // 选项
+	Filepath    string            // 文件路径
+	Skip        bool              // 是否跳过
 }
+
+// Api struct    HTTP 接口结构体.
 type Api struct {
-	Params        []string
-	Returns       []string
-	Method        string
-	BaseRoute     string
-	HttpMethod    string
-	Route         string
-	Handler       string
-	Title         string
-	Options       map[string]string
-	AnnotationMap string
+	Params        []string          // 参数列表
+	Returns       []string          // 返回值列表
+	Method        string            // 方法名
+	BaseRoute     string            // 基础路由
+	HttpMethod    string            // HTTP方法
+	Route         string            // 路由
+	Handler       string            // 处理函数名
+	Title         string            // 标题
+	Options       map[string]string // 选项
+	AnnotationMap string            // 注释
 }
 
 // ParseApiFromService 从服务定义中解析出API组信息

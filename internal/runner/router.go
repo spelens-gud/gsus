@@ -56,7 +56,7 @@ func Router(ctx context.Context, opts *RouterOptions) error {
 	}
 
 	// 加载模板
-	templatePath := filepath.Join(routerPath, ".gsus.router"+config.TemplateSuffix)
+	templatePath := filepath.Join(routerPath, ".gsus.router"+config.GsusTemplateSuffix)
 	customTemplate, hash, err := template.InitAndLoad(templatePath, template.DefaultHttpRouterTemplate)
 	if err != nil {
 		log.Error("加载路由器模板失败")

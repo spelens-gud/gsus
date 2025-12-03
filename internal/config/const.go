@@ -21,14 +21,14 @@ var (
 )
 
 const (
-	// ConfigDir 配置目录名称.
-	ConfigDir = ".gsus"
-	// ConfigFile 配置文件路径.
-	ConfigFile = ConfigDir + string(filepath.Separator) + "config.yaml"
-	// TemplateDir 模板目录路径.
-	TemplateDir = ConfigDir + string(filepath.Separator) + "templates"
-	// TemplateSuffix 模板文件后缀.
-	TemplateSuffix = ".tmpl"
+	// GsusConfigDir 配置目录名称.
+	GsusConfigDir = ".gsus"
+	// GsusConfigFile 配置文件路径.
+	GsusConfigFile = GsusConfigDir + string(filepath.Separator) + "config.yaml"
+	// GsusTemplateDir 模板目录路径.
+	GsusTemplateDir = GsusConfigDir + string(filepath.Separator) + "templates"
+	// GsusTemplateSuffix 模板文件后缀.
+	GsusTemplateSuffix = ".tmpl"
 	// BackupSuffix 备份文件后缀.
 	BackupSuffix = ".bak"
 )

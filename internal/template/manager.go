@@ -57,13 +57,13 @@ func initTemplate(templatePath string, defaultTemplate string) error {
 // Load function    加载模板文件.
 func Load(templatePath string) (*template.Template, string, error) {
 	// 添加模板后缀
-	if !strings.HasSuffix(templatePath, config.TemplateSuffix) {
-		templatePath += config.TemplateSuffix
+	if !strings.HasSuffix(templatePath, config.GsusTemplateSuffix) {
+		templatePath += config.GsusTemplateSuffix
 	}
 
 	// 处理相对路径
 	if !filepath.IsAbs(templatePath) {
-		templatePath = filepath.Join(config.TemplateDir, templatePath)
+		templatePath = filepath.Join(config.GsusTemplateDir, templatePath)
 		if err := utils.FixFilepathByProjectDir(&templatePath); err != nil {
 			return nil, "", errors.WrapWithCode(err, errors.ErrCodeTemplate, "failed to resolve template path")
 		}

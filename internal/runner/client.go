@@ -52,7 +52,7 @@ func Client(ctx context.Context, opts *ClientOptions) error {
 	}
 
 	// 加载模板
-	templatePath := filepath.Join(clientPath, ".gsus.client_api"+config.TemplateSuffix)
+	templatePath := filepath.Join(clientPath, ".gsus.client_api"+config.GsusTemplateSuffix)
 	apiTemplate, _, err := template.InitAndLoad(templatePath, template.DefaultHttpClientApiTemplate)
 	if err != nil {
 		log.Error("加载客户端API模板失败")
@@ -60,7 +60,7 @@ func Client(ctx context.Context, opts *ClientOptions) error {
 	}
 
 	// 生成客户端代码
-	if err := generator.GenClients(apiGroups, func(option *config.GenOption) {
+	if err := generator.GenClients(apiGroups, func(option *config.ClientOpt) {
 		option.ClientsPath = clientPath
 		option.ApiTemplate = apiTemplate
 	}); err != nil {
