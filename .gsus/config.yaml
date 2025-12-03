@@ -34,9 +34,9 @@ db2struct:
   password: "123456"
   host: "127.0.0.1"
   port: 3306
-  db: "purchase"
+  db: "mydb"
   charset: ""
-  path: ./example/table
+  path: ./example/sql
   genericTemplate: model_generic
   genericMapTypes:
   - int

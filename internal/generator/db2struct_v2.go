@@ -101,7 +101,7 @@ func (g *Generator[T]) GenerateTable(ctx context.Context, tableName, outputDir s
 
 // generateStructCode method    生成结构体代码.
 func (g *Generator[T]) generateStructCode(table db.Table, columns []db.Column, indexes []db.Index) ([]byte, error) {
-	structName := strcase.SnakeCase(table.Name)
+	structName := strcase.UpperCamelCase(table.Name)
 
 	// 生成字段定义
 	fields, fieldNameMap := g.generateFields(columns, indexes)
