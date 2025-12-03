@@ -302,6 +302,15 @@ func (a *PostgreSQLAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "primaryKey")
 	}
 
+	// 检查是否为时间字段，添加自动时间戳标签
+	if isPostgreSQLTimeColumn(col) {
+		if isPostgreSQLCreateTimeColumn(col.Name) {
+			parts = append(parts, "autoCreateTime")
+		} else if isPostgreSQLUpdateTimeColumn(col.Name) {
+			parts = append(parts, "autoUpdateTime")
+		}
+	}
+
 	// 类型
 	parts = append(parts, "type:"+col.Type)
 
@@ -312,11 +321,10 @@ func (a *PostgreSQLAdapter) BuildGormTag(col Column, indexes []Index) string {
 
 	// 默认值（PostgreSQL特殊处理）
 	if col.Default != "" {
-		// 对于序列（自增），使用autoCreateTime或保留default
+		// 对于序列（自增）或时间字段，不添加default标签
 		if len(col.Default) > 7 && col.Default[:7] == "nextval" {
 			// 这是序列，不添加default标签，GORM会自动处理
-			// 但可以添加注释说明
-		} else {
+		} else if !isPostgreSQLCreateTimeColumn(col.Name) && !isPostgreSQLUpdateTimeColumn(col.Name) {
 			parts = append(parts, "default:"+col.Default)
 		}
 	}
@@ -373,4 +381,45 @@ func buildPostgreSQLIndexTags(columnName string, indexes []Index) []string {
 	}
 
 	return parts
+}
+
+// isPostgreSQLCreateTimeColumn function    判断是否为创建时间字段.
+func isPostgreSQLCreateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "created_at" ||
+		lowerName == "create_time" ||
+		lowerName == "createtime" ||
+		lowerName == "created_time" ||
+		lowerName == "createdtime" ||
+		lowerName == "gmt_create" ||
+		lowerName == "gmtcreate"
+}
+
+// isPostgreSQLUpdateTimeColumn function    判断是否为更新时间字段.
+func isPostgreSQLUpdateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "updated_at" ||
+		lowerName == "update_time" ||
+		lowerName == "updatetime" ||
+		lowerName == "updated_time" ||
+		lowerName == "updatedtime" ||
+		lowerName == "gmt_modified" ||
+		lowerName == "gmtmodified" ||
+		lowerName == "modified_at" ||
+		lowerName == "modify_time"
+}
+
+// isPostgreSQLTimeColumn function    判断是否为时间类型字段.
+func isPostgreSQLTimeColumn(col Column) bool {
+	// 检查Go类型
+	if strings.Contains(col.GoType, "time.Time") ||
+		strings.Contains(col.GoType, "sql.NullTime") {
+		return true
+	}
+
+	// 检查数据库类型
+	lowerType := strings.ToLower(col.Type)
+	return strings.Contains(lowerType, "timestamp") ||
+		strings.Contains(lowerType, "date") ||
+		strings.Contains(lowerType, "time")
 }

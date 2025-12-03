@@ -311,6 +311,15 @@ func (a *SQLiteAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "autoIncrement")
 	}
 
+	// 检查是否为时间字段，添加自动时间戳标签
+	if isSQLiteTimeColumn(col) {
+		if isSQLiteCreateTimeColumn(col.Name) {
+			parts = append(parts, "autoCreateTime")
+		} else if isSQLiteUpdateTimeColumn(col.Name) {
+			parts = append(parts, "autoUpdateTime")
+		}
+	}
+
 	// 类型
 	parts = append(parts, "type:"+col.Type)
 
@@ -319,8 +328,8 @@ func (a *SQLiteAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "not null")
 	}
 
-	// 默认值
-	if col.Default != "" {
+	// 默认值（如果已经有autoCreateTime或autoUpdateTime，可能不需要default）
+	if col.Default != "" && !isSQLiteCreateTimeColumn(col.Name) && !isSQLiteUpdateTimeColumn(col.Name) {
 		parts = append(parts, "default:"+col.Default)
 	}
 
@@ -376,4 +385,46 @@ func buildSQLiteIndexTags(columnName string, indexes []Index) []string {
 	}
 
 	return parts
+}
+
+// isSQLiteCreateTimeColumn function    判断是否为创建时间字段.
+func isSQLiteCreateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "created_at" ||
+		lowerName == "create_time" ||
+		lowerName == "createtime" ||
+		lowerName == "created_time" ||
+		lowerName == "createdtime" ||
+		lowerName == "gmt_create" ||
+		lowerName == "gmtcreate"
+}
+
+// isSQLiteUpdateTimeColumn function    判断是否为更新时间字段.
+func isSQLiteUpdateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "updated_at" ||
+		lowerName == "update_time" ||
+		lowerName == "updatetime" ||
+		lowerName == "updated_time" ||
+		lowerName == "updatedtime" ||
+		lowerName == "gmt_modified" ||
+		lowerName == "gmtmodified" ||
+		lowerName == "modified_at" ||
+		lowerName == "modify_time"
+}
+
+// isSQLiteTimeColumn function    判断是否为时间类型字段.
+func isSQLiteTimeColumn(col Column) bool {
+	// 检查Go类型
+	if strings.Contains(col.GoType, "time.Time") ||
+		strings.Contains(col.GoType, "sql.NullTime") {
+		return true
+	}
+
+	// 检查数据库类型
+	upperType := strings.ToUpper(col.Type)
+	return strings.Contains(upperType, "DATETIME") ||
+		strings.Contains(upperType, "TIMESTAMP") ||
+		strings.Contains(upperType, "DATE") ||
+		strings.Contains(upperType, "TIME")
 }

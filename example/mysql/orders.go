@@ -8,12 +8,12 @@ import "database/sql"
 
 // orders : 订单表
 type Orders struct {
-	ID          int64          `gorm:"column:id;PRIMARY_KEY;AUTO_INCREMENT;TYPE:bigint;NOT NULL"`                             // 订单ID
-	UserID      int64          `gorm:"column:user_id;TYPE:bigint;NOT NULL;INDEX:idx_user_id"`                                 // 用户ID
-	OrderNo     string         `gorm:"column:order_no;TYPE:varchar(50);NOT NULL;INDEX:idx_order_no;UNIQUE_INDEX:order_no"`    // 订单号
-	TotalAmount float64        `gorm:"column:total_amount;TYPE:decimal(10,2);NOT NULL"`                                       // 总金额
-	Status      sql.NullString `gorm:"column:status;TYPE:enum('pending','paid','shipped','completed')" sql:"DEFAULT:pending"` // 订单状态
-	CreatedAt   sql.NullTime   `gorm:"column:created_at;TYPE:datetime" sql:"DEFAULT:CURRENT_TIMESTAMP DEFAULT_GENERATED"`     // 创建时间
+	ID          int64          `gorm:"column:id;primaryKey;autoIncrement;type:bigint;not null"`                                               // 订单ID
+	UserID      int64          `gorm:"column:user_id;type:bigint;not null;index:idx_user_id"`                                                 // 用户ID
+	OrderNo     string         `gorm:"column:order_no;type:varchar(50);not null;index:idx_order_no;uniqueIndex:order_no"`                     // 订单号
+	TotalAmount float64        `gorm:"column:total_amount;type:decimal(10,2);not null"`                                                       // 总金额
+	Status      sql.NullString `gorm:"column:status;type:enum('pending','paid','shipped','completed');default:pending" sql:"default:pending"` // 订单状态
+	CreatedAt   sql.NullTime   `gorm:"column:created_at;autoCreateTime;type:datetime" sql:"default:CURRENT_TIMESTAMP DEFAULT_GENERATED"`      // 创建时间
 }
 
 const TableOrders = "orders"

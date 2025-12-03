@@ -309,7 +309,15 @@ func (g *Generator[T]) createGormTagFunc(columnMap map[string]db.Column, fieldNa
 		if !ok {
 			return oldTag
 		}
-		return buildGormTagProperties(col, fieldNameMap, indexMap, fieldName, g.opts.GormAnnotation)
+
+		// 构建该字段相关的索引列表
+		var fieldIndexes []db.Index
+		if idxs, exists := indexMap[fieldName]; exists {
+			fieldIndexes = idxs
+		}
+
+		// 使用适配器的BuildGormTag方法生成标签
+		return g.adapter.BuildGormTag(col, fieldIndexes)
 	}
 }
 
@@ -412,6 +420,8 @@ func clearColumnComments(columnMap map[string]db.Column, commentOutside bool) {
 }
 
 // buildGormTagProperties function    构建GORM标签属性.
+//
+//nolint:unused
 func buildGormTagProperties(col db.Column, fieldNameMap map[string]string, indexMap map[string][]db.Index,
 	fieldName string, gormAnnotation bool) string {
 	var props []string
@@ -441,6 +451,8 @@ func buildGormTagProperties(col db.Column, fieldNameMap map[string]string, index
 }
 
 // buildIndexProperties function    构建索引属性.
+//
+//nolint:unused
 func buildIndexProperties(indexMap map[string][]db.Index, fieldName string) []string {
 	idxs, exists := indexMap[fieldName]
 	if !exists {
@@ -451,6 +463,8 @@ func buildIndexProperties(indexMap map[string][]db.Index, fieldName string) []st
 }
 
 // buildIndexLists function    构建索引列表.
+//
+//nolint:unused
 func buildIndexLists(idxs []db.Index) []string {
 	var (
 		props         []string

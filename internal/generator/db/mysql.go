@@ -255,13 +255,13 @@ func mapMySQLTypeToGo(mysqlType string, nullable bool, typeMap map[string]string
 	if nullable {
 		switch mysqlType {
 		case "tinyint", "int", "smallint", "mediumint", "bigint":
-			return "mysql.NullInt64"
+			return "sql.NullInt64"
 		case "char", "enum", "varchar", "longtext", "mediumtext", "text", "tinytext":
-			return "mysql.NullString"
+			return "sql.NullString"
 		case "date", "datetime", "time", "timestamp":
-			return "mysql.NullTime"
+			return "sql.NullTime"
 		case "decimal", "double", "float":
-			return "mysql.NullFloat64"
+			return "sql.NullFloat64"
 		}
 	}
 
@@ -297,6 +297,15 @@ func (a *MySQLAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "autoIncrement")
 	}
 
+	// 检查是否为时间字段，添加自动时间戳标签
+	if isTimeColumn(col) {
+		if isCreateTimeColumn(col.Name) {
+			parts = append(parts, "autoCreateTime")
+		} else if isUpdateTimeColumn(col.Name) {
+			parts = append(parts, "autoUpdateTime")
+		}
+	}
+
 	// 类型
 	parts = append(parts, "type:"+col.Type)
 
@@ -305,8 +314,8 @@ func (a *MySQLAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "not null")
 	}
 
-	// 默认值
-	if col.Default != "" {
+	// 默认值（如果已经有autoCreateTime或autoUpdateTime，可能不需要default）
+	if col.Default != "" && !isCreateTimeColumn(col.Name) && !isUpdateTimeColumn(col.Name) {
 		parts = append(parts, "default:"+col.Default)
 	}
 
@@ -362,4 +371,46 @@ func buildMySQLIndexTags(columnName string, indexes []Index) []string {
 	}
 
 	return parts
+}
+
+// isCreateTimeColumn function    判断是否为创建时间字段.
+func isCreateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "created_at" ||
+		lowerName == "create_time" ||
+		lowerName == "createtime" ||
+		lowerName == "created_time" ||
+		lowerName == "createdtime" ||
+		lowerName == "gmt_create" ||
+		lowerName == "gmtcreate"
+}
+
+// isUpdateTimeColumn function    判断是否为更新时间字段.
+func isUpdateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "updated_at" ||
+		lowerName == "update_time" ||
+		lowerName == "updatetime" ||
+		lowerName == "updated_time" ||
+		lowerName == "updatedtime" ||
+		lowerName == "gmt_modified" ||
+		lowerName == "gmtmodified" ||
+		lowerName == "modified_at" ||
+		lowerName == "modify_time"
+}
+
+// isTimeColumn function    判断是否为时间类型字段.
+func isTimeColumn(col Column) bool {
+	// 检查Go类型
+	if strings.Contains(col.GoType, "time.Time") ||
+		strings.Contains(col.GoType, "sql.NullTime") {
+		return true
+	}
+
+	// 检查数据库类型
+	lowerType := strings.ToLower(col.Type)
+	return strings.Contains(lowerType, "datetime") ||
+		strings.Contains(lowerType, "timestamp") ||
+		lowerType == "date" ||
+		lowerType == "time"
 }

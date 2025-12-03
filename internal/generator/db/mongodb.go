@@ -285,6 +285,15 @@ func (a *MongoDBAdapter) BuildGormTag(col Column, indexes []Index) string {
 		parts = append(parts, "primaryKey")
 	}
 
+	// 检查是否为时间字段，添加自动时间戳标签
+	if isMongoDBTimeColumn(col) {
+		if isMongoDBCreateTimeColumn(col.Name) {
+			parts = append(parts, "autoCreateTime")
+		} else if isMongoDBUpdateTimeColumn(col.Name) {
+			parts = append(parts, "autoUpdateTime")
+		}
+	}
+
 	// 类型
 	if col.Type != "" {
 		parts = append(parts, "type:"+col.Type)
@@ -347,4 +356,47 @@ func buildMongoDBIndexTags(columnName string, indexes []Index) []string {
 	}
 
 	return parts
+}
+
+// isMongoDBCreateTimeColumn function    判断是否为创建时间字段.
+func isMongoDBCreateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "created_at" ||
+		lowerName == "createdat" ||
+		lowerName == "create_time" ||
+		lowerName == "createtime" ||
+		lowerName == "created_time" ||
+		lowerName == "createdtime" ||
+		lowerName == "gmt_create" ||
+		lowerName == "gmtcreate"
+}
+
+// isMongoDBUpdateTimeColumn function    判断是否为更新时间字段.
+func isMongoDBUpdateTimeColumn(columnName string) bool {
+	lowerName := strings.ToLower(columnName)
+	return lowerName == "updated_at" ||
+		lowerName == "updatedat" ||
+		lowerName == "update_time" ||
+		lowerName == "updatetime" ||
+		lowerName == "updated_time" ||
+		lowerName == "updatedtime" ||
+		lowerName == "gmt_modified" ||
+		lowerName == "gmtmodified" ||
+		lowerName == "modified_at" ||
+		lowerName == "modify_time"
+}
+
+// isMongoDBTimeColumn function    判断是否为时间类型字段.
+func isMongoDBTimeColumn(col Column) bool {
+	// 检查Go类型
+	if strings.Contains(col.GoType, "time.Time") ||
+		strings.Contains(col.GoType, "primitive.DateTime") {
+		return true
+	}
+
+	// 检查数据库类型
+	lowerType := strings.ToLower(col.Type)
+	return lowerType == "date" ||
+		lowerType == "timestamp" ||
+		strings.Contains(lowerType, "datetime")
 }

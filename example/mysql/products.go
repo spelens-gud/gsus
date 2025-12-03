@@ -8,14 +8,14 @@ import "database/sql"
 
 // products : 商品表
 type Products struct {
-	ID          int64          `gorm:"column:id;PRIMARY_KEY;AUTO_INCREMENT;TYPE:bigint;NOT NULL"`                         // 商品ID
-	Name        string         `gorm:"column:name;TYPE:varchar(200);NOT NULL;INDEX:idx_name"`                             // 商品名称
-	Description sql.NullString `gorm:"column:description;TYPE:text"`                                                      // 商品描述
-	Price       float64        `gorm:"column:price;TYPE:decimal(10,2);NOT NULL"`                                          // 价格
-	Stock       sql.NullInt64  `gorm:"column:stock;TYPE:int" sql:"DEFAULT:0"`                                             // 库存
-	Category    sql.NullString `gorm:"column:category;TYPE:varchar(50);INDEX:idx_category"`                               // 分类
-	Status      sql.NullString `gorm:"column:status;TYPE:enum('active','inactive')" sql:"DEFAULT:active"`                 // 状态
-	CreatedAt   sql.NullTime   `gorm:"column:created_at;TYPE:datetime" sql:"DEFAULT:CURRENT_TIMESTAMP DEFAULT_GENERATED"` // 创建时间
+	ID          int64          `gorm:"column:id;primaryKey;autoIncrement;type:bigint;not null"`                                          // 商品ID
+	Name        string         `gorm:"column:name;type:varchar(200);not null;index:idx_name"`                                            // 商品名称
+	Description sql.NullString `gorm:"column:description;type:text"`                                                                     // 商品描述
+	Price       float64        `gorm:"column:price;type:decimal(10,2);not null"`                                                         // 价格
+	Stock       sql.NullInt64  `gorm:"column:stock;type:int;default:0" sql:"default:0"`                                                  // 库存
+	Category    sql.NullString `gorm:"column:category;type:varchar(50);index:idx_category"`                                              // 分类
+	Status      sql.NullString `gorm:"column:status;type:enum('active','inactive');default:active" sql:"default:active"`                 // 状态
+	CreatedAt   sql.NullTime   `gorm:"column:created_at;autoCreateTime;type:datetime" sql:"default:CURRENT_TIMESTAMP DEFAULT_GENERATED"` // 创建时间
 }
 
 const TableProducts = "products"
